@@ -1,0 +1,14 @@
+# Файлы игры — лицензионная копия, не коммитим
+games/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Результаты обучения
+runs/
+checkpoints/
+videos/
+cores/
+
