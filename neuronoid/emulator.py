@@ -1,15 +1,22 @@
 """DOSBox Pure (libretro) внутри Python: кадры, клавиши, мышь, savestates.
 
 Ядро libretro хранит глобальное состояние, поэтому в процессе может жить только
-один эмулятор. Параллельность — через процессы.
+один эмулятор за всю жизнь процесса: повторная инициализация после close()
+зависает внутри libretro.py. Параллельность — через процессы.
+
+Клавиши — `libretro.api.input.Key` (коды RETROK_*): цифры называются
+`Key.Zero`..`Key.Nine`, буквы — `Key.A`..`Key.Z`. Игрой управляет мышь (`Mouse`),
+клавиши нужны только для меню при загрузке.
 """
 
 from collections.abc import Iterable
+from ctypes import byref
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from libretro import ArrayAudioDriver, ArrayVideoDriver, Session
+from libretro.api.av import retro_system_av_info
 from libretro.api.input import Key, MouseState
 
 __all__ = ["DEFAULT_OPTIONS", "Key", "LibretroEmulator", "Mouse"]
@@ -22,7 +29,7 @@ DEFAULT_OPTIONS: dict[str, str] = {"dosbox_pure_cycles": "4720"}
 # загруженное состояние (подобрано тестом со случайной историей и паузами).
 LOAD_SETTLE_FRAMES = 2
 
-_instance_alive = False
+_instance_created = False
 
 
 @dataclass(frozen=True)
@@ -43,9 +50,14 @@ class LibretroEmulator:
         options: dict[str, str] | None = None,
         audio: bool = False,
     ):
-        global _instance_alive
-        if _instance_alive:
-            raise RuntimeError("one emulator per process: ядро libretro хранит глобальное состояние")
+        global _instance_created
+        for path in (core, game):
+            if not Path(path).is_file():
+                raise FileNotFoundError(path)
+        if _instance_created:
+            raise RuntimeError(
+                "one emulator per process (even after close): ядро libretro хранит глобальное состояние"
+            )
         self._audio_enabled = audio
         self._mouse: MouseState | None = None
         self._held: set[Key] = set()
@@ -61,10 +73,16 @@ class LibretroEmulator:
             perf=None,  # perf-драйвер libretro.py падает на retro_init
             log=None,
         )
+        _instance_created = True
         self._session.__enter__()
-        _instance_alive = True
         self._closed = False
         self.fps: float = float(self._session.core.get_system_av_info().timing.fps)
+        # retro_get_system_av_info в DOSBox Pure ждёт, пока поток эмуляции
+        # доделает кадр (TCM_FINISH_FRAME). Без этого retro_run возвращается
+        # раньше, и мышь из следующего шага попадает в кадр в момент, зависящий
+        # от времени хоста, — игра перестаёт быть детерминированной.
+        self._av_info = retro_system_av_info()
+        self._finish_frame = self._session.core._core.retro_get_system_av_info
         self._samples: list[np.ndarray] = []
 
     def _inputs(self):
@@ -87,6 +105,7 @@ class LibretroEmulator:
             self._mouse = MouseState(x=mouse.dx, y=mouse.dy, left=mouse.left, right=mouse.right)
         for _ in range(frames):
             self._session.run()
+            self._finish_frame(byref(self._av_info))
         self._mouse = None
         self._set_keys(set())
         self._drain_audio()
@@ -130,12 +149,10 @@ class LibretroEmulator:
         self.step(frames=LOAD_SETTLE_FRAMES)
 
     def close(self) -> None:
-        global _instance_alive
         if self._closed:
             return
         self._closed = True
         self._session.__exit__(None, None, None)
-        _instance_alive = False
 
     def __enter__(self) -> "LibretroEmulator":
         return self

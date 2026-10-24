@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import time
@@ -91,6 +92,52 @@ def test_second_instance_in_process_fails(emu):
         LibretroEmulator(core_path(), game_path())
 
 
+REOPEN = """
+from neuronoid.config import core_path, game_path
+from neuronoid.emulator import LibretroEmulator
+LibretroEmulator(core_path(), game_path()).close()
+try:
+    LibretroEmulator(core_path(), game_path())
+except RuntimeError as e:
+    print("refused:", e)
+"""
+
+
+def test_reopen_after_close_refused_not_hung():
+    # повторная инициализация ядра в процессе зависает внутри libretro.py
+    r = subprocess.run(
+        [sys.executable, "-c", REOPEN], capture_output=True, encoding="utf-8", timeout=120,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    assert "refused: one emulator per process" in r.stdout
+
+
+def test_missing_game_file_rejected(emu, tmp_path):
+    with pytest.raises(FileNotFoundError):
+        LibretroEmulator(core_path(), tmp_path / "missing.zip")
+
+
+def replay(emu, state, sleep_rng=None, steps=300):
+    """Кадр после каждого шага повтора с одинаковой случайной мышью."""
+    rng = np.random.default_rng(1)
+    emu.load_state(state)
+    out = []
+    for i in range(steps):
+        emu.step(mouse=Mouse(dx=int(rng.choice([-10, -4, 0, 4, 10])), left=i == 5), frames=4)
+        out.append(emu.frame())
+        if sleep_rng is not None:
+            time.sleep(float(sleep_rng.random()) * 0.003)
+    return out
+
+
+def test_replay_deterministic_every_step(emu, round1):
+    ref = replay(emu, round1)
+    for sleeps in (None, np.random.default_rng(7)):
+        other = replay(emu, round1, sleeps)
+        bad = [i for i, (a, b) in enumerate(zip(ref, other)) if not np.array_equal(a, b)]
+        assert not bad, f"{len(bad)} шагов из {len(ref)} разошлись (паузы: {sleeps is not None})"
+
+
 CHILD = """
 import sys, numpy as np
 from neuronoid.config import core_path, game_path
@@ -120,7 +167,7 @@ def test_state_loads_in_other_process(emu, round1, tmp_path):
 def test_frame_fresh_after_load_state_random_history(emu, round1):
     rng = np.random.default_rng(0)
     frames = []
-    for _ in range(10):
+    for _ in range(40):
         emu.step(mouse=Mouse(dx=int(rng.integers(-9, 10)), left=bool(rng.random() < 0.3)),
                  frames=int(rng.integers(1, 200)))
         time.sleep(float(rng.random()) * 0.03)  # поток эмуляции ядра чувствителен ко времени
