@@ -65,7 +65,7 @@ def test_reward_between():
     assert reward_between(s(12000), s(0)) == 0
     assert reward_between(s(100), s(200)) == pytest.approx(1.0)
     assert reward_between(s(100, lv=2), s(100, lv=1)) == pytest.approx(-1.0)
-    assert reward_between(s(100, rd=1), s(100, rd=2)) == pytest.approx(10.0)
+    assert reward_between(s(100, rd=1), s(100, rd=2)) == pytest.approx(50.0)
     assert reward_between(s(100), s(100 + 6000)) == 0  # неправдоподобный скачок
 
 
@@ -262,3 +262,12 @@ def test_snapshot_offered_after_confirmation(emu, tmp_path):
     for i in range(60):
         env.step(1 if i < 3 else 0)
     assert StartPool(tmp_path).stats().get(1, 0) >= 1
+
+
+def test_capsule_points_are_capped():
+    # пойманная капсула (+1000 за шаг) не должна стоить как прохождение раунда
+    def s(sc):
+        return ScreenState(True, sc, 1, 2)
+
+    assert reward_between(s(1000), s(2000)) == pytest.approx(2.0)
+    assert reward_between(s(1000), s(1120)) == pytest.approx(1.2)  # кирпич — как раньше

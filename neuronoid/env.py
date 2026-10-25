@@ -30,9 +30,14 @@ ACTIONS: tuple[Mouse, ...] = (
 )
 
 SCORE_SCALE = 0.01
+# Награда за очки — не больше SCORE_CAP за шаг. Пойманная капсула даёт 1000 очков
+# за раз: без ограничения она стоила столько же, сколько прохождение раунда, и агент
+# (ppo2) научился «добывать» капсулы вместо того, чтобы добивать стену. Кирпич
+# (50–120 очков) оплачивается как раньше.
+SCORE_CAP = 200
 MAX_SCORE_JUMP = 5000  # больший прирост за шаг — ошибка чтения, а не игра
 LIFE_PENALTY = -1.0
-ROUND_BONUS = 10.0
+ROUND_BONUS = 50.0  # прохождение раунда — главная цель
 # Конец игры — титульный экран. Отсутствие поля само по себе не конец: переход
 # между раундами может гасить экран. На случай зависания — предохранитель.
 MAX_NOT_PLAYING_STEPS = 1000
@@ -47,7 +52,7 @@ def reward_between(prev: ScreenState, cur: ScreenState) -> float:
     if prev.score is not None and cur.score is not None:
         gain = cur.score - prev.score
         if 0 < gain <= MAX_SCORE_JUMP:
-            reward += gain * SCORE_SCALE
+            reward += min(gain, SCORE_CAP) * SCORE_SCALE
     if prev.lives is not None and cur.lives is not None and cur.lives < prev.lives:
         reward += LIFE_PENALTY
     if prev.round is not None and cur.round is not None and cur.round > prev.round:
