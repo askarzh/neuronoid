@@ -21,6 +21,7 @@ def main() -> None:
     ap.add_argument("--device", default="auto")
     ap.add_argument("--checkpoint-every", type=int, default=200_000)
     ap.add_argument("--no-live", action="store_true")
+    ap.add_argument("--torch-threads", type=int, default=4)
     args = ap.parse_args()
     try:
         core_path(), game_path()
@@ -33,7 +34,8 @@ def main() -> None:
     print("  остановить: Ctrl+C — модель сохранится; продолжить: та же команда с --resume")
     try:
         latest = train(run_dir, args.steps, n_envs=args.envs, seed=args.seed, resume=args.resume,
-                       device=args.device, checkpoint_every=args.checkpoint_every, live=not args.no_live)
+                       device=args.device, checkpoint_every=args.checkpoint_every, live=not args.no_live,
+                       torch_threads=args.torch_threads)
     except (FileExistsError, FileNotFoundError) as e:
         raise SystemExit(str(e))
     print(f"Сохранено: {latest}")

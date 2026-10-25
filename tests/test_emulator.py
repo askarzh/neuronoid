@@ -174,3 +174,20 @@ def test_frame_fresh_after_load_state_random_history(emu, round1):
         emu.load_state(round1)
         frames.append(emu.frame())
     assert all(np.array_equal(frames[0], f) for f in frames)
+
+
+def test_input_polling_is_cheap(emu, round1):
+    # каждый опрос ввода — вызов Python; ядро не должно опрашивать джойстики на 4 портах
+    drv = emu._session.input
+    orig, calls = drv.state, [0]
+
+    def counting(*args):
+        calls[0] += 1
+        return orig(*args)
+
+    drv.state = counting
+    try:
+        emu.step(frames=10)
+    finally:
+        drv.state = orig
+    assert calls[0] / 10 <= 12

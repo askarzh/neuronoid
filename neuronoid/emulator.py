@@ -75,6 +75,10 @@ class LibretroEmulator:
         )
         _instance_created = True
         self._session.__enter__()
+        # Джойстики на портах не нужны (мышь и клавиатура работают без них), а их
+        # опрос — ~74 вызова Python за кадр: отключаем, эмуляция заметно быстрее.
+        for port in range(4):
+            self._session.core.set_controller_port_device(port, 0)  # RETRO_DEVICE_NONE
         self._closed = False
         self.fps: float = float(self._session.core.get_system_av_info().timing.fps)
         # retro_get_system_av_info в DOSBox Pure ждёт, пока поток эмуляции

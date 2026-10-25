@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 
@@ -163,8 +164,13 @@ def train(
     device: str = "auto",
     checkpoint_every: int = 200_000,
     live: bool = True,
+    torch_threads: int = 4,
 ) -> Path:
-    """Учит до `total_steps` шагов всего (при resume — досчитывает до этой цели)."""
+    """Учит до `total_steps` шагов всего (при resume — досчитывает до этой цели).
+
+    `torch_threads`: на ноутбуке 4 потока быстрее 16 — иначе torch отнимает ядра у сред.
+    """
+    torch.set_num_threads(torch_threads)
     run_dir = Path(run_dir)
     ckpt_dir = run_dir / "checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
