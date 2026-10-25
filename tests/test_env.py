@@ -106,3 +106,22 @@ def test_title_screen_ends_episode(env, monkeypatch):
     title = np.asarray(Image.open(Path(__file__).parent / "data/frames/idle_0099_not.png").convert("RGB"))
     _force_frames(env, monkeypatch, title)
     assert env.step(0)[2]
+
+
+def test_known_score_ignores_implausible_jump():
+    # ложный скачок не должен «съесть» награду за следующие настоящие очки
+    known = ScreenState(True, 100, 1, 2)
+    known = update_known(known, ScreenState(True, 100 + 6000, 1, 2))
+    assert known.score == 100
+    assert reward_between(known, ScreenState(True, 200, 1, 2)) == pytest.approx(1.0)
+
+
+def test_info_reports_points_gained_since_reset(env):
+    obs, info = env.reset(seed=0)
+    assert info["gained_score"] == 0
+    for i in range(400):
+        *_, info = env.step(1 if i < 3 else 0)
+        if info["known_score"] and info["known_score"] > 0:
+            break
+    start = info["known_score"] - info["gained_score"]
+    assert start >= 0 and info["gained_score"] == info["known_score"] - start

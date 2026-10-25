@@ -54,9 +54,15 @@ def reward_between(prev: ScreenState, cur: ScreenState) -> float:
 
 def update_known(known: ScreenState, cur: ScreenState) -> ScreenState:
     """Последние известные значения: None не затирает, счёт только растёт."""
-    score = cur.score if cur.score is not None else known.score
-    if known.score is not None and score is not None:
-        score = max(known.score, score)  # ложное завышение не оплачивается дважды
+    score = known.score
+    if cur.score is not None:
+        if known.score is None:
+            score = cur.score
+        elif 0 <= cur.score - known.score <= MAX_SCORE_JUMP:
+            score = cur.score
+        # падение счёта и неправдоподобный скачок — ошибки чтения: известный счёт
+        # не меняется, иначе ложное завышение оплатилось бы дважды или «съело» бы
+        # награду за следующие настоящие очки
     return ScreenState(
         playing=cur.playing,
         score=score,
@@ -109,6 +115,7 @@ class ArkanoidEnv(gym.Env):
         self._prev_action = 0
         self._steps = 0
         self._not_playing = 0
+        self._start_score: int | None = None
         self._frame = None
         self._live_pub = None
 
@@ -143,6 +150,9 @@ class ArkanoidEnv(gym.Env):
         return {
             "score": state.score, "round": state.round, "lives": state.lives, "playing": state.playing,
             "known_score": k.score, "known_round": k.round, "known_lives": k.lives,
+            # очки, набранные с начала эпизода (без набранных за случайный старт)
+            "gained_score": (k.score - self._start_score)
+            if k.score is not None and self._start_score is not None else 0,
         }
 
     def _publish(self, state: ScreenState) -> None:
@@ -165,6 +175,7 @@ class ArkanoidEnv(gym.Env):
         self._stack[:] = obs
         state = read_state(self._frame)
         self._known = state
+        self._start_score = state.score
         self._prev_action = 0
         self._steps = 0
         self._not_playing = 0

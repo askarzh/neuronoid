@@ -22,9 +22,9 @@ def test_train_smoke_and_resume(tmp_path):
     assert p.exists() and (tmp_path / "config.json").exists()
     m1 = PPO.load(p)
     assert m1.num_timesteps >= 512
-    train(tmp_path, total_steps=512, n_envs=2, resume=True, live=False)
+    train(tmp_path, total_steps=1024, n_envs=2, resume=True, live=False)  # --steps — общая цель
     m2 = PPO.load(tmp_path / "checkpoints" / "latest.zip")
-    assert m2.num_timesteps >= m1.num_timesteps + 512
+    assert m2.num_timesteps >= 1024
 
 
 def test_interrupt_saves_latest(tmp_path, monkeypatch):
@@ -40,3 +40,86 @@ def test_interrupt_saves_latest(tmp_path, monkeypatch):
 def test_score_callback_logs_metrics(tmp_path):
     train(tmp_path, total_steps=2048, n_envs=2, live=False)
     assert {"neuronoid/score_max", "neuronoid/score_mean", "rollout/ep_rew_mean"} <= event_tags(tmp_path / "tb")
+
+
+def test_resume_uses_newest_periodic_checkpoint(tmp_path):
+    # жёсткая остановка: latest.zip не успел записаться, есть только периодические
+    train(tmp_path, total_steps=512, n_envs=2, checkpoint_every=256, live=False)
+    ckpts = tmp_path / "checkpoints"
+    (ckpts / "latest.zip").unlink()
+    newest = max(ckpts.glob("ppo_*_steps.zip"), key=lambda p: int(p.stem.split("_")[1]))
+    steps_before = PPO.load(newest).num_timesteps
+    # цель уже достигнута: продолжение не учит (веса те же), а старт с нуля дал бы другие веса
+    train(tmp_path, total_steps=steps_before, n_envs=2, seed=1, resume=True, live=False)
+    a = PPO.load(newest).policy.state_dict()
+    b = PPO.load(ckpts / "latest.zip").policy.state_dict()
+    assert all((a[k] == b[k]).all() for k in a)
+
+
+def test_resume_without_checkpoints_fails(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        train(tmp_path, total_steps=512, n_envs=2, resume=True, live=False)
+
+
+def test_refuses_to_overwrite_without_resume(tmp_path):
+    train(tmp_path, total_steps=256, n_envs=2, live=False)
+    with pytest.raises(FileExistsError):
+        train(tmp_path, total_steps=256, n_envs=2, live=False)
+
+
+def test_steps_is_total_target_on_resume(tmp_path):
+    train(tmp_path, total_steps=512, n_envs=2, live=False)
+    train(tmp_path, total_steps=1024, n_envs=2, resume=True, live=False)
+    n = PPO.load(tmp_path / "checkpoints" / "latest.zip").num_timesteps
+    assert 1024 <= n < 1024 + 512
+
+
+def test_lr_schedule_continues_globally():
+    from neuronoid.train import LEARNING_RATE, global_linear
+
+    sched = global_linear(done=500, target=1000)  # половина пути уже пройдена
+    assert sched(1.0) == pytest.approx(LEARNING_RATE * 0.5)
+    assert sched(0.0) == pytest.approx(0.0)
+
+
+def test_latest_save_is_atomic(tmp_path, monkeypatch):
+    train(tmp_path, total_steps=256, n_envs=2, live=False)
+    latest = tmp_path / "checkpoints" / "latest.zip"
+    good = latest.read_bytes()
+
+    def broken_save(self, path, *a, **k):
+        open(path, "wb").write(b"half")  # запись оборвалась
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(PPO, "save", broken_save)
+    with pytest.raises(KeyboardInterrupt):
+        train(tmp_path, total_steps=512, n_envs=2, resume=True, live=False)
+    assert latest.read_bytes() == good
+
+
+def test_watchdog_interrupts_when_steps_stop():
+    import time
+
+    from neuronoid.train import Watchdog
+
+    fired = []
+    dog = Watchdog(timeout=0.3, on_timeout=lambda: fired.append(1))
+    dog.start()
+    time.sleep(1.0)
+    dog.stop()
+    assert fired
+
+
+def test_watchdog_quiet_while_steps_flow():
+    import time
+
+    from neuronoid.train import Watchdog
+
+    fired = []
+    dog = Watchdog(timeout=0.5, on_timeout=lambda: fired.append(1))
+    dog.start()
+    for _ in range(10):
+        dog.feed()
+        time.sleep(0.1)
+    dog.stop()
+    assert not fired

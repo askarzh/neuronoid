@@ -15,7 +15,7 @@ def make_env_fn(rank: int, seed: int, life_loss_terminal: bool, live_rank: int |
 
         silence_native_stdout()
         env = ArkanoidEnv(life_loss_terminal=life_loss_terminal, live=rank == live_rank)
-        return Monitor(env, info_keywords=("known_score", "known_round"))
+        return Monitor(env, info_keywords=("known_score", "known_round", "gained_score"))
 
     return make
 

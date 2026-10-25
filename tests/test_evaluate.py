@@ -35,3 +35,18 @@ def test_evaluate_deterministic_by_seed(eval_env):
     a = evaluate(lambda obs: 0, eval_env, games=2, seed=5).to_json()
     b = evaluate(lambda obs: 0, eval_env, games=2, seed=5).to_json()
     assert a == b
+
+
+def test_evaluate_stochastic_policy_reproducible_with_seed_hook(eval_env):
+    # случайная политика воспроизводится, если её генератор пересевается в начале каждой игры
+    state = {}
+
+    def on_game_start(game_seed):
+        state["rng"] = np.random.default_rng(game_seed)
+
+    def policy(obs):
+        return int(state["rng"].integers(6))
+
+    a = evaluate(policy, eval_env, games=2, seed=7, on_game_start=on_game_start).to_json()
+    b = evaluate(policy, eval_env, games=2, seed=7, on_game_start=on_game_start).to_json()
+    assert a == b

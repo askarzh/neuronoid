@@ -14,7 +14,7 @@ from neuronoid.train import train
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
-    ap.add_argument("--steps", type=int, default=5_000_000)
+    ap.add_argument("--steps", type=int, default=5_000_000, help="сколько шагов всего (с --resume — цель)")
     ap.add_argument("--envs", type=int, default=10)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--resume", action="store_true")
@@ -30,8 +30,12 @@ def main() -> None:
     print(f"Обучение: {run_dir}")
     print("  окно:    uv run python scripts/watch.py")
     print(f"  графики: uv run tensorboard --logdir {run_dir / 'tb'}")
-    latest = train(run_dir, args.steps, n_envs=args.envs, seed=args.seed, resume=args.resume,
-                   device=args.device, checkpoint_every=args.checkpoint_every, live=not args.no_live)
+    print("  остановить: Ctrl+C — модель сохранится; продолжить: та же команда с --resume")
+    try:
+        latest = train(run_dir, args.steps, n_envs=args.envs, seed=args.seed, resume=args.resume,
+                       device=args.device, checkpoint_every=args.checkpoint_every, live=not args.no_live)
+    except (FileExistsError, FileNotFoundError) as e:
+        raise SystemExit(str(e))
     print(f"Сохранено: {latest}")
 
 

@@ -41,11 +41,20 @@ class Report:
 
 
 def evaluate(
-    policy: Callable[[np.ndarray], int], env: ArkanoidEnv, games: int = GAMES, seed: int = 1000
+    policy: Callable[[np.ndarray], int],
+    env: ArkanoidEnv,
+    games: int = GAMES,
+    seed: int = 1000,
+    on_game_start: Callable[[int], None] | None = None,
 ) -> Report:
-    """Игра i начинается с reset(seed=seed + i) и идёт до Game Over или лимита шагов."""
+    """Игра i начинается с reset(seed=seed + i) и идёт до Game Over или лимита шагов.
+
+    `on_game_start(seed + i)` — чтобы пересеять случайность самой политики.
+    """
     results = []
     for i in range(games):
+        if on_game_start is not None:
+            on_game_start(seed + i)
         obs, info = env.reset(seed=seed + i)
         steps, done = 0, False
         while not done:
