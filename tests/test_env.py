@@ -125,3 +125,24 @@ def test_info_reports_points_gained_since_reset(env):
             break
     start = info["known_score"] - info["gained_score"]
     assert start >= 0 and info["gained_score"] == info["known_score"] - start
+
+
+def test_confirmed_score_jump_becomes_new_baseline():
+    # выход «B» даёт настоящий бонус > MAX_SCORE_JUMP: после 3 устойчивых чтений это новая база
+    from neuronoid.env import JumpConfirm
+
+    j = JumpConfirm()
+    assert j.update(1220, 7930) is None
+    assert j.update(1220, 7930) is None
+    assert j.update(1220, 7950) == 7950
+
+
+def test_single_score_spike_is_not_confirmed():
+    from neuronoid.env import JumpConfirm
+
+    j = JumpConfirm()
+    assert j.update(1220, 7930) is None
+    assert j.update(1220, 1300) is None  # обычное чтение сбрасывает подозрение
+    assert j.update(1300, 7930) is None
+    assert j.update(1300, 7930) is None
+    assert j.update(1300, 1400) is None

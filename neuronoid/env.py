@@ -13,7 +13,7 @@ from neuronoid.config import core_path, game_path
 from neuronoid.emulator import LibretroEmulator, Mouse
 from neuronoid.screen import ScreenState, is_title_screen, read_state
 
-__all__ = ["ACTIONS", "ArkanoidEnv", "ScreenState", "reward_between", "update_known"]
+__all__ = ["ACTIONS", "ArkanoidEnv", "JumpConfirm", "ScreenState", "reward_between", "update_known"]
 
 # Ничего, огонь (запуск мяча / лазер), медленно и быстро влево/вправо.
 # Скорость ракетки игра ограничивает сама: около 1 и 2,5 пикселя за кадр.
@@ -71,6 +71,34 @@ def update_known(known: ScreenState, cur: ScreenState) -> ScreenState:
     )
 
 
+JUMP_CONFIRM_STEPS = 3
+
+
+class JumpConfirm:
+    """Большой скачок счёта, устойчивый JUMP_CONFIRM_STEPS шагов, — настоящий бонус.
+
+    Так выход в следующий раунд через капсулу «B» (+6710 очков) не принимается
+    за ошибку чтения навсегда. Бонус становится новой базой без выплаты:
+    за сам переход и так начисляется ROUND_BONUS.
+    """
+
+    def __init__(self):
+        self._reads: list[int] = []
+
+    def update(self, known: int | None, read: int | None) -> int | None:
+        """Новая база счёта, если скачок подтвердился, иначе None."""
+        if known is None or read is None or read - known <= MAX_SCORE_JUMP:
+            self._reads.clear()
+            return None
+        if self._reads and read < self._reads[-1]:
+            self._reads.clear()
+        self._reads.append(read)
+        if len(self._reads) >= JUMP_CONFIRM_STEPS:
+            self._reads.clear()
+            return read
+        return None
+
+
 def preprocess(frame: np.ndarray) -> np.ndarray:
     """Поле -> оттенки серого -> среднее по блокам 2×2: uint8 (93, 96)."""
     field = frame[FIELD].astype(np.float32)
@@ -116,6 +144,7 @@ class ArkanoidEnv(gym.Env):
         self._steps = 0
         self._not_playing = 0
         self._start_score: int | None = None
+        self._jump = JumpConfirm()
         self._frame = None
         self._live_pub = None
 
@@ -176,6 +205,7 @@ class ArkanoidEnv(gym.Env):
         state = read_state(self._frame)
         self._known = state
         self._start_score = state.score
+        self._jump = JumpConfirm()
         self._prev_action = 0
         self._steps = 0
         self._not_playing = 0
@@ -198,6 +228,12 @@ class ArkanoidEnv(gym.Env):
             self._known.lives is not None and state.lives is not None and state.lives < self._known.lives
         )
         self._known = update_known(self._known, state)
+        base = self._jump.update(self._known.score, state.score)
+        if base is not None:
+            # подтверждённый бонус: новая база; очки за эпизод считаем без него
+            if self._start_score is not None:
+                self._start_score += base - self._known.score
+            self._known = ScreenState(self._known.playing, base, self._known.round, self._known.lives)
         self._not_playing = 0 if state.playing else self._not_playing + 1
         terminated = (
             is_title_screen(self._frame)
