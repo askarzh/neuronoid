@@ -146,3 +146,35 @@ def test_single_score_spike_is_not_confirmed():
     assert j.update(1300, 7930) is None
     assert j.update(1300, 7930) is None
     assert j.update(1300, 1400) is None
+
+
+def test_life_loss_episode_continues_same_game(emu):
+    # как EpisodicLife в Atari: потеря жизни — конец эпизода для обучения,
+    # но следующий reset продолжает ту же игру, а не грузит свежий раунд 1
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, life_loss_terminal=True)
+    _, info = env.reset(seed=0)
+    lives0 = info["lives"]
+    for _ in range(5000):
+        *_, terminated, truncated, info = env.step(0)
+        if terminated:
+            break
+    assert terminated and info["known_lives"] == lives0 - 1
+    score_at_loss = info["known_score"]
+    _, info = env.reset(seed=1)
+    assert info["known_lives"] == lives0 - 1 and info["known_score"] == score_at_loss
+    assert info["gained_score"] == 0
+
+
+def test_game_over_resets_to_round1_in_life_loss_mode(emu):
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, life_loss_terminal=True)
+    env.reset(seed=0)
+    for _ in range(20):  # три жизни и Game Over
+        for _ in range(5000):
+            *_, terminated, truncated, info = env.step(0)
+            if terminated:
+                break
+        if not info["playing"] or info["known_lives"] == 0 and terminated and not info["playing"]:
+            break
+        env.reset()
+    _, info = env.reset(seed=2)
+    assert info["lives"] == 2 and info["score"] == 0  # свежая игра

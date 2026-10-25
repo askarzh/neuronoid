@@ -145,6 +145,7 @@ class ArkanoidEnv(gym.Env):
         self._not_playing = 0
         self._start_score: int | None = None
         self._jump = JumpConfirm()
+        self._continue_game = False  # после потери жизни reset продолжает ту же игру
         self._frame = None
         self._live_pub = None
 
@@ -195,16 +196,21 @@ class ArkanoidEnv(gym.Env):
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)
         emu = self._ensure_emulator()
-        emu.load_state(self._start)
-        self._frame = emu.frame()
-        for _ in range(int(self.np_random.integers(0, self.max_noop + 1))):
-            emu.step(mouse=ACTIONS[0], frames=self.frame_skip)
-        self._frame = emu.frame()
-        obs = preprocess(self._frame)
-        self._stack[:] = obs
-        state = read_state(self._frame)
-        self._known = state
-        self._start_score = state.score
+        if self._continue_game:
+            # как EpisodicLife в Atari: эпизод кончился потерей жизни, а игра идёт дальше —
+            # агент учится и на второй-третьей жизни, с полуразбитой стеной и т. д.
+            self._continue_game = False
+            state = read_state(self._frame)
+            self._known = update_known(self._known, state)
+        else:
+            emu.load_state(self._start)
+            for _ in range(int(self.np_random.integers(0, self.max_noop + 1))):
+                emu.step(mouse=ACTIONS[0], frames=self.frame_skip)
+            self._frame = emu.frame()
+            state = read_state(self._frame)
+            self._known = state
+        self._stack[:] = preprocess(self._frame)
+        self._start_score = self._known.score
         self._jump = JumpConfirm()
         self._prev_action = 0
         self._steps = 0
@@ -241,6 +247,8 @@ class ArkanoidEnv(gym.Env):
             or (self.life_loss_terminal and lost_life)
         )
         truncated = self._steps >= self.max_steps
+        game_over = is_title_screen(self._frame) or self._not_playing >= MAX_NOT_PLAYING_STEPS
+        self._continue_game = self.life_loss_terminal and lost_life and not game_over and not truncated
         self._publish(state)
         return self._stack.copy(), reward, terminated, truncated, self._info(state)
 
