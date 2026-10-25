@@ -64,4 +64,16 @@ def test_concurrent_writers(tmp_path):
         for i in range(4)
     ]
     assert all(p.wait(timeout=120) == 0 for p in procs)
-    assert StartPool(tmp_path, per_round=5).stats()[1] <= 5
+    pool = StartPool(tmp_path, per_round=5)
+    pool.prune()  # отложенные удаления (файл был занят читателем) дочищаются
+    assert pool.stats()[1] <= 5
+
+
+def test_offer_survives_write_error(tmp_path, monkeypatch):
+    pool = StartPool(tmp_path)
+
+    def locked(self, data):
+        raise PermissionError("файл занят антивирусом")
+
+    monkeypatch.setattr(Path, "write_bytes", locked)
+    assert pool.offer(b"x", StartMeta(1, 100, 100, 2)) is False

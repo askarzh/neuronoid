@@ -127,6 +127,7 @@ class ArkanoidEnv(gym.Env):
         start_pool: Path | None = None,
         curriculum_prob: float = 0.5,
         snapshot_every: int = 100,
+        snapshot_confirm_steps: int = 60,
     ):
         """`emulator`/`start_state` — для тестов: чужой эмулятор, уже знающий старт.
 
@@ -157,6 +158,11 @@ class ArkanoidEnv(gym.Env):
         self._pool = StartPool(start_pool) if start_pool is not None else None
         self.curriculum_prob = curriculum_prob
         self.snapshot_every = snapshot_every
+        # позиция уходит в пул, только если после неё ещё столько шагов не было ни
+        # потери жизни, ни Game Over: иначе пул забивается уже проигранными позициями
+        # (мяч пролетел мимо ракетки, на поле надпись GAME OVER)
+        self.snapshot_confirm_steps = snapshot_confirm_steps
+        self._pending: list[tuple[int, bytes, StartMeta]] = []
         self._round_entry_score: int | None = None  # счёт при входе в текущий раунд
         self._curriculum_start = False
         self._frame = None
@@ -228,6 +234,7 @@ class ArkanoidEnv(gym.Env):
                 self._round_entry_score = state.score
             self._known = state
         self._stack[:] = preprocess(self._frame)
+        self._pending.clear()
         self._start_score = self._known.score
         self._jump = JumpConfirm()
         self._prev_action = 0
@@ -240,7 +247,10 @@ class ArkanoidEnv(gym.Env):
         """Позиция из пула или None (пула нет, не выпало, пусто, позиция битая)."""
         if self._pool is None or self.np_random.random() >= self.curriculum_prob:
             return None
-        got = self._pool.sample(self.np_random)
+        try:
+            got = self._pool.sample(self.np_random)
+        except OSError:
+            return None
         if got is None:
             return None
         data, meta, path = got
@@ -268,7 +278,17 @@ class ArkanoidEnv(gym.Env):
         ):
             return
         progress = max(0, k.score - self._round_entry_score)
-        self._pool.offer(self._emu.save_state(), StartMeta(k.round, progress, k.score, k.lives))
+        self._pending.append((self._steps, self._emu.save_state(), StartMeta(k.round, progress, k.score, k.lives)))
+
+    def _confirm_snapshots(self, bad: bool) -> None:
+        if self._pool is None:
+            return
+        if bad:
+            self._pending.clear()
+            return
+        while self._pending and self._steps - self._pending[0][0] >= self.snapshot_confirm_steps:
+            _, data, meta = self._pending.pop(0)
+            self._pool.offer(data, meta)
 
     def step(self, action):
         action = int(action)
@@ -281,6 +301,14 @@ class ArkanoidEnv(gym.Env):
         self._steps += 1
 
         state = read_state(self._frame)
+        k = self._known
+        # Новая игра без титульного экрана (клик в момент Game Over сразу начинает
+        # игру заново): прочитанный счёт меньше известного, а жизней не меньше.
+        # В одной игре счёт не убывает, а точное сравнение глифов не читает меньшее.
+        new_game = (
+            state.playing and state.score is not None and k.score is not None and state.score < k.score
+            and (state.lives is None or k.lives is None or state.lives >= k.lives)
+        )
         reward = reward_between(self._known, state)
         lost_life = (
             self._known.lives is not None and state.lives is not None and state.lives < self._known.lives
@@ -297,15 +325,13 @@ class ArkanoidEnv(gym.Env):
             self._known = ScreenState(self._known.playing, base, self._known.round, self._known.lives)
         if prev_round is not None and self._known.round is not None and self._known.round > prev_round:
             self._round_entry_score = self._known.score  # новый раунд: прогресс с нуля
-        self._maybe_snapshot(state, lost_life)
         self._not_playing = 0 if state.playing else self._not_playing + 1
-        terminated = (
-            is_title_screen(self._frame)
-            or self._not_playing >= MAX_NOT_PLAYING_STEPS
-            or (self.life_loss_terminal and lost_life)
-        )
+        game_over = new_game or is_title_screen(self._frame) or self._not_playing >= MAX_NOT_PLAYING_STEPS
+        self._confirm_snapshots(bad=lost_life or game_over)
+        if not game_over:
+            self._maybe_snapshot(state, lost_life)
+        terminated = game_over or (self.life_loss_terminal and lost_life)
         truncated = self._steps >= self.max_steps
-        game_over = is_title_screen(self._frame) or self._not_playing >= MAX_NOT_PLAYING_STEPS
         self._continue_game = self.life_loss_terminal and lost_life and not game_over and not truncated
         self._publish(state)
         return self._stack.copy(), reward, terminated, truncated, self._info(state)

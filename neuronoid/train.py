@@ -54,6 +54,7 @@ class ScoreCallback(BaseCallback):
         self._points: list[int] = []
         self._rounds: list[int] = []
         self._curriculum: list[bool] = []
+        self._fresh: dict[str, list] = {"points": [], "score": [], "round": []}
 
     def _on_step(self) -> bool:
         for info in self.locals["infos"]:
@@ -64,6 +65,10 @@ class ScoreCallback(BaseCallback):
                                 ("known_round", self._rounds), ("curriculum_start", self._curriculum)):
                 if ep.get(key) is not None:
                     bucket.append(ep[key])
+            if not ep.get("curriculum_start"):  # только игры со свежего раунда 1 — сравнимо с ppo1
+                for key, name in (("gained_score", "points"), ("known_score", "score"), ("known_round", "round")):
+                    if ep.get(key) is not None:
+                        self._fresh[name].append(ep[key])
         return True
 
     def _on_rollout_end(self) -> None:
@@ -75,7 +80,16 @@ class ScoreCallback(BaseCallback):
         if self._rounds:
             self.logger.record("neuronoid/round_max", float(np.max(self._rounds)))
         if self._curriculum:
+            # доля эпизодов-жизней (не игр), начатых с позиции из пула
             self.logger.record("neuronoid/curriculum_share", float(np.mean(self._curriculum)))
+        if self._fresh["points"]:
+            self.logger.record("neuronoid/points_mean_fresh", float(np.mean(self._fresh["points"])))
+        if self._fresh["score"]:
+            self.logger.record("neuronoid/score_max_fresh", float(np.max(self._fresh["score"])))
+        if self._fresh["round"]:
+            self.logger.record("neuronoid/round_max_fresh", float(np.max(self._fresh["round"])))
+        for bucket in self._fresh.values():
+            bucket.clear()
         if self._pool_dir is not None:
             stats = StartPool(self._pool_dir).stats()
             if stats:
@@ -179,6 +193,7 @@ def train(
     curriculum: bool = False,
     curriculum_prob: float = 0.5,
     init_from: Path | None = None,
+    snapshot_confirm_steps: int = 60,
 ) -> Path:
     """Учит до `total_steps` шагов всего (при resume — досчитывает до этой цели).
 
@@ -198,10 +213,18 @@ def train(
         raise FileNotFoundError(f"Нечего продолжать: в {ckpt_dir} нет чекпоинтов")
     if not resume and start is not None:
         raise FileExistsError(f"В {ckpt_dir} уже есть чекпоинты: добавь --resume или возьми другое имя --run")
-    (run_dir / "config.json").write_text(
+    config_path = run_dir / "config.json"
+    if resume and config_path.exists():
+        old = json.loads(config_path.read_text())
+        for key, value in (("curriculum", curriculum), ("curriculum_prob", curriculum_prob)):
+            if key in old and old[key] != value:
+                raise ValueError(f"--resume с другим {key}: было {old[key]}, сейчас {value} (curriculum-настройки)")
+    config_path.write_text(
         json.dumps(
             {"total_steps": total_steps, "n_envs": n_envs, "seed": seed, "resume": resume,
-             "device": device, "learning_rate": LEARNING_RATE, **PPO_KWARGS},
+             "device": device, "learning_rate": LEARNING_RATE, "curriculum": curriculum,
+             "curriculum_prob": curriculum_prob, "init_from": str(init_from) if init_from else None,
+             **PPO_KWARGS},
             indent=1,
         )
     )
@@ -211,7 +234,8 @@ def train(
         if not start.exists():
             raise FileNotFoundError(f"Нет чекпоинта: {start}")
     venv = make_vec_env(n_envs, seed=seed, life_loss_terminal=True, live=live,
-                        start_pool=pool_dir, curriculum_prob=curriculum_prob)
+                        start_pool=pool_dir, curriculum_prob=curriculum_prob,
+                        snapshot_confirm_steps=snapshot_confirm_steps)
     model = None
     dog = Watchdog()
     try:

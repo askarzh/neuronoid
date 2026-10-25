@@ -138,5 +138,17 @@ def test_init_from_with_resume_is_rejected(tmp_path):
 
 
 def test_curriculum_run_fills_pool(tmp_path):
-    train(tmp_path, total_steps=2048, n_envs=2, live=False, curriculum=True)
+    train(tmp_path, total_steps=2048, n_envs=2, live=False, curriculum=True, snapshot_confirm_steps=1)
     assert any((tmp_path / "starts").rglob("*.state"))
+
+
+def test_score_callback_logs_fresh_metrics(tmp_path):
+    train(tmp_path, total_steps=2048, n_envs=2, live=False, curriculum=True)
+    tags = event_tags(tmp_path / "tb")
+    assert {"neuronoid/points_mean_fresh", "neuronoid/score_max_fresh"} & tags
+
+
+def test_resume_keeps_curriculum_settings(tmp_path):
+    train(tmp_path, total_steps=256, n_envs=2, live=False, curriculum=True)
+    with pytest.raises(ValueError, match="curriculum"):
+        train(tmp_path, total_steps=512, n_envs=2, live=False, resume=True)  # забыли --curriculum

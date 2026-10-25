@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -185,7 +187,7 @@ from neuronoid.curriculum import StartMeta, StartPool  # noqa: E402
 
 def test_env_offers_snapshots(emu, tmp_path):
     env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path,
-                      curriculum_prob=0.0, snapshot_every=5)
+                      curriculum_prob=0.0, snapshot_every=5, snapshot_confirm_steps=1)
     env.reset(seed=0)
     for i in range(60):
         env.step(1 if i < 3 else 0)
@@ -194,7 +196,7 @@ def test_env_offers_snapshots(emu, tmp_path):
 
 def test_reset_from_pool_continues_that_position(emu, tmp_path):
     env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path,
-                      curriculum_prob=0.0, snapshot_every=5)
+                      curriculum_prob=0.0, snapshot_every=5, snapshot_confirm_steps=1)
     env.reset(seed=0)
     for i in range(200):
         *_, info = env.step(1 if i < 3 else 0)
@@ -222,3 +224,41 @@ def test_without_pool_always_round1(emu):
     for s in range(3):
         _, info = env.reset(seed=s)
         assert info["score"] == 0 and info["round"] == 1 and not info["curriculum_start"]
+
+
+def _frame(name):
+    from PIL import Image
+
+    return np.asarray(Image.open(Path(__file__).parent / "data/frames" / name).convert("RGB")).copy()
+
+
+def test_new_game_after_skipped_title_ends_episode(emu, monkeypatch):
+    # клик на титульном экране сразу начинает новую игру: счёт упал до 0 — это Game Over
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, life_loss_terminal=True)
+    env.reset(seed=0)
+    _force_frames(env, monkeypatch, _frame("play_01699_score.png"))  # 1270 очков
+    assert not env.step(0)[2]
+    _force_frames(env, monkeypatch, _frame("play_start.png"))  # новая игра, 0 очков
+    *_, terminated, _, info = env.step(0)
+    assert terminated
+    assert not env._continue_game  # следующий reset — новая игра, а не продолжение
+
+
+def test_snapshots_wait_for_survival(emu, tmp_path):
+    # позиция попадает в пул, только если после неё не было потери жизни и Game Over
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path,
+                      curriculum_prob=0.0, snapshot_every=5, snapshot_confirm_steps=100_000)
+    env.reset(seed=0)
+    for _ in range(20_000):
+        if env.step(0)[2]:
+            break
+    assert StartPool(tmp_path).stats() == {}
+
+
+def test_snapshot_offered_after_confirmation(emu, tmp_path):
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path,
+                      curriculum_prob=0.0, snapshot_every=5, snapshot_confirm_steps=1)
+    env.reset(seed=0)
+    for i in range(60):
+        env.step(1 if i < 3 else 0)
+    assert StartPool(tmp_path).stats().get(1, 0) >= 1

@@ -62,14 +62,31 @@ class StartPool:
         if len(entries) >= self.per_round and meta.progress <= entries[0][0].progress:
             return False
         stem = bucket / f"{meta.progress}-{uuid.uuid4().hex}"
-        for suffix, data in ((".state", state), (".json", json.dumps(asdict(meta)).encode())):
-            tmp = stem.with_name(stem.name + suffix + ".tmp")
-            tmp.write_bytes(data)
-            os.replace(tmp, stem.with_suffix(suffix))  # .state раньше .json
-        entries = self._entries(bucket)
-        for _, path in entries[: max(0, len(entries) - self.per_round)]:
-            _remove(path)  # худшие сверх лимита
+        try:
+            for suffix, data in ((".state", state), (".json", json.dumps(asdict(meta)).encode())):
+                tmp = stem.with_name(stem.name + suffix + ".tmp")
+                tmp.write_bytes(data)
+                os.replace(tmp, stem.with_suffix(suffix))  # .state раньше .json
+        except OSError:
+            # диск, антивирус или индексатор держит файл: позицию просто не берём,
+            # обучение из-за этого падать не должно
+            for leftover in (stem.with_name(stem.name + ".state.tmp"), stem.with_name(stem.name + ".json.tmp"),
+                             stem.with_suffix(".state")):
+                try:
+                    leftover.unlink()
+                except OSError:
+                    pass
+            return False
+        self.prune(meta.round)
         return True
+
+    def prune(self, round_: int | None = None) -> None:
+        """Удаляет худшие позиции сверх лимита (на Windows занятый файл удалится при следующей чистке)."""
+        buckets = [self.root / str(round_)] if round_ is not None else self._buckets()
+        for bucket in buckets:
+            entries = self._entries(bucket)
+            for _, path in entries[: max(0, len(entries) - self.per_round)]:
+                _remove(path)
 
     def sample(self, rng: np.random.Generator) -> tuple[bytes, StartMeta, Path] | None:
         """Корзина равновероятно среди непустых, позиция — из лучшей половины корзины."""
