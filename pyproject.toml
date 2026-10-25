@@ -5,9 +5,11 @@ description = "Агент, который сам учится играть в DO
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "gymnasium>=1.4.0",
     "libretro.py",
     "numpy",
     "pillow",
+    "pygame>=2.6.1",
 ]
 
 [dependency-groups]

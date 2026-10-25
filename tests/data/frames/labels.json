@@ -1,0 +1,248 @@
+{
+ "idle_0000_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 0
+ },
+ "idle_0011_play.png": {
+  "lives": 1,
+  "playing": true,
+  "round": 1,
+  "score": 110
+ },
+ "idle_0049_play.png": {
+  "lives": 0,
+  "playing": true,
+  "round": 1,
+  "score": 200
+ },
+ "idle_0099_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_0221_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 0
+ },
+ "idle_0802_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_0924_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 2,
+  "score": 0
+ },
+ "idle_1505_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_1627_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 3,
+  "score": 0
+ },
+ "idle_2208_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_2330_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 4,
+  "score": 0
+ },
+ "idle_2911_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_3033_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 5,
+  "score": 0
+ },
+ "idle_3614_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_3736_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 6,
+  "score": 0
+ },
+ "idle_4317_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_4439_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 7,
+  "score": 0
+ },
+ "idle_5020_not.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "idle_5142_play.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 8,
+  "score": 0
+ },
+ "intro.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "menu_0.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "menu_1.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "menu_2.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
+ "play_00000_lives.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 0
+ },
+ "play_00000_round.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 0
+ },
+ "play_00000_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 0
+ },
+ "play_00039_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 110
+ },
+ "play_00131_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 220
+ },
+ "play_00306_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 330
+ },
+ "play_00548_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 440
+ },
+ "play_00792_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 550
+ },
+ "play_01039_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 660
+ },
+ "play_01046_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 860
+ },
+ "play_01306_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 970
+ },
+ "play_01308_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 1060
+ },
+ "play_01496_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 860
+ },
+ "play_01500_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 970
+ },
+ "play_01502_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 1060
+ },
+ "play_01697_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 1180
+ },
+ "play_01699_score.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 1270
+ },
+ "play_start.png": {
+  "lives": 2,
+  "playing": true,
+  "round": 1,
+  "score": 0
+ }
+}
