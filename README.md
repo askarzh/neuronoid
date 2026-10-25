@@ -12,6 +12,22 @@
 3. Положить свою копию игры в `games/arkanoid/DOS_arkanoid.zip`.
    Папки `games/` и `cores/` не попадают в git.
 
+## Посмотреть, как играет агент
+
+В одном терминале запустить игру (пока — случайный агент):
+
+```
+uv run python scripts/play_random.py --steps 5000 --realtime
+```
+
+В другом открыть живое окно (его можно открывать и закрывать в любой момент):
+
+```
+uv run python scripts/watch.py
+```
+
+![Живое окно](docs/img/live_window.png)
+
 ## Тесты
 
 `uv run pytest`
