@@ -6,6 +6,7 @@
 """
 
 import json
+import os
 import struct
 import sys
 from multiprocessing import shared_memory
@@ -13,6 +14,11 @@ from multiprocessing import shared_memory
 import numpy as np
 
 LIVE_NAME = "neuronoid_live"
+
+
+def live_name() -> str:
+    """Имя сегмента; NEURONOID_LIVE_NAME позволяет развести тесты и запуски."""
+    return os.environ.get("NEURONOID_LIVE_NAME", LIVE_NAME)
 FRAME_SHAPE = (200, 320, 3)
 INFO_BYTES = 256
 _HEADER = struct.Struct("<QI")  # счётчик, длина JSON
@@ -31,7 +37,8 @@ def _attach(name: str) -> shared_memory.SharedMemory:
 
 
 class LivePublisher:
-    def __init__(self, name: str = LIVE_NAME):
+    def __init__(self, name: str | None = None):
+        name = name or live_name()
         try:
             self._shm = shared_memory.SharedMemory(name=name, create=True, size=SIZE)
             self._owner = True
@@ -64,8 +71,8 @@ class LivePublisher:
 
 
 class LiveReader:
-    def __init__(self, name: str = LIVE_NAME):
-        self._name = name
+    def __init__(self, name: str | None = None):
+        self._name = name or live_name()
         self._shm: shared_memory.SharedMemory | None = None
 
     def read(self) -> tuple[np.ndarray, dict, int] | None:

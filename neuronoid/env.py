@@ -137,7 +137,13 @@ class ArkanoidEnv(gym.Env):
         return obs
 
     def _info(self, state: ScreenState) -> dict:
-        return {"score": state.score, "round": state.round, "lives": state.lives, "playing": state.playing}
+        # known_* — последние прочитанные значения: на титульном экране после
+        # Game Over обычные поля уже None, а итог эпизода нужен для графиков
+        k = self._known
+        return {
+            "score": state.score, "round": state.round, "lives": state.lives, "playing": state.playing,
+            "known_score": k.score, "known_round": k.round, "known_lives": k.lives,
+        }
 
     def _publish(self, state: ScreenState) -> None:
         if self.live:

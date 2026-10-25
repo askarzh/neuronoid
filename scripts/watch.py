@@ -10,7 +10,7 @@ import time
 import numpy as np
 import pygame
 
-from neuronoid.live import FRAME_SHAPE, LIVE_NAME, LiveReader
+from neuronoid.live import FRAME_SHAPE, LiveReader, live_name
 
 FPS = 70
 
@@ -28,7 +28,7 @@ def status_line(info: dict, n: int) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--scale", type=int, default=3)
-    ap.add_argument("--name", default=LIVE_NAME)
+    ap.add_argument("--name", default=live_name())
     ap.add_argument("--screenshot", help="сохранить кадр окна в файл и выйти")
     ap.add_argument("--frames", type=int, default=60, help="через сколько кадров делать скриншот")
     args = ap.parse_args()
