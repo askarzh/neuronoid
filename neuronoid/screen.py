@@ -4,6 +4,7 @@
 образцами (neuronoid/glyphs.npz) точное: незнакомая ячейка — значит «не прочитал».
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -23,8 +24,8 @@ ROUND_TWO_X = 261
 _GLYPHS: dict[str, np.ndarray] = dict(np.load(Path(__file__).with_name("glyphs.npz")))
 
 
-def _ink(frame: np.ndarray, y0: int, y1: int, x0: int, x1: int) -> np.ndarray:
-    return frame[y0:y1, x0:x1].max(axis=2) > INK
+def _ink(frame: np.ndarray, y0: int, y1: int, x0: int, x1: int, threshold: int = INK) -> np.ndarray:
+    return frame[y0:y1, x0:x1].max(axis=2) > threshold
 
 
 def _digit(cell: np.ndarray) -> str | None:
@@ -63,3 +64,65 @@ def read_round(frame: np.ndarray) -> int | None:
     if two is not None and two >= 10:
         return two
     return read_number(frame, (y0, y1, ROUND_ONE_X, ROUND_ONE_X + CELL), 1)
+
+
+# Иконки запасных жизней: ракетки 12×3 в строках 193–195, шаг 16, первая с x 48.
+LIVES_Y = (193, 196)
+LIVES_X0 = 48
+LIVES_PITCH = 16
+LIVES_SLOT = 12
+LIVES_MAX_X = 216  # дальше — правая стена
+_LIFE_ICON = np.array(
+    [[0] + [1] * 10 + [0], [1] * 12, [0] + [1] * 10 + [0]], dtype=bool
+)
+
+# Стены поля: если они видны, идёт игра (или демо-режим, который похож на игру).
+LEFT_WALL_X = (34, 37)
+RIGHT_WALL_X = (217, 220)
+WALL_Y = (5, 189)
+
+
+@dataclass(frozen=True)
+class ScreenState:
+    playing: bool
+    score: int | None
+    round: int | None
+    lives: int | None
+
+
+def is_playing(frame: np.ndarray) -> bool:
+    if frame.shape != GAME_SHAPE:
+        return False
+    y0, y1 = WALL_Y
+    # у стен есть тёмные элементы, поэтому считаем любой не чёрный пиксель:
+    # на игровых кадрах покрытие 0.96, на титульном экране и меню — не больше 0.38
+    left = _ink(frame, y0, y1, *LEFT_WALL_X, threshold=0).any(axis=1).mean()
+    right = _ink(frame, y0, y1, *RIGHT_WALL_X, threshold=0).any(axis=1).mean()
+    return bool(left > 0.9 and right > 0.9)
+
+
+def read_lives(frame: np.ndarray) -> int | None:
+    """Число иконок запасных жизней; None, если кадр не игровой или иконку что-то закрыло."""
+    if not is_playing(frame):
+        return None
+    y0, y1 = LIVES_Y
+    count, seen_empty = 0, False
+    x = LIVES_X0
+    while x + LIVES_SLOT <= LIVES_MAX_X:
+        slot = _ink(frame, y0, y1, x, x + LIVES_SLOT, threshold=0)  # у иконки есть тёмно-серые пиксели
+        if np.array_equal(slot, _LIFE_ICON):
+            if seen_empty:
+                return None  # иконка после пустого места — что-то не так
+            count += 1
+        elif slot.any():
+            return None
+        else:
+            seen_empty = True
+        x += LIVES_PITCH
+    return count
+
+
+def read_state(frame: np.ndarray) -> ScreenState:
+    if not is_playing(frame):
+        return ScreenState(False, None, None, None)
+    return ScreenState(True, read_score(frame), read_round(frame), read_lives(frame))
