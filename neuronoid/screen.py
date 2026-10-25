@@ -21,7 +21,11 @@ ROUND_Y = (126, 132)
 ROUND_ONE_X = 265
 ROUND_TWO_X = 261
 
-_GLYPHS: dict[str, np.ndarray] = dict(np.load(Path(__file__).with_name("glyphs.npz")))
+_MASKS = dict(np.load(Path(__file__).with_name("glyphs.npz")))
+_GLYPHS: dict[str, np.ndarray] = {k: v for k, v in _MASKS.items() if k.isdigit()}
+# Титульный экран (после Game Over): слово PLAYER в заголовке таблицы рекордов.
+TITLE_BOX = (81, 87, 57, 105)
+_TITLE = _MASKS["TITLE"]
 
 
 def _ink(frame: np.ndarray, y0: int, y1: int, x0: int, x1: int, threshold: int = INK) -> np.ndarray:
@@ -126,3 +130,10 @@ def read_state(frame: np.ndarray) -> ScreenState:
     if not is_playing(frame):
         return ScreenState(False, None, None, None)
     return ScreenState(True, read_score(frame), read_round(frame), read_lives(frame))
+
+
+def is_title_screen(frame: np.ndarray) -> bool:
+    """Титульный экран с таблицей рекордов — сюда игра уходит после Game Over."""
+    if frame.shape != GAME_SHAPE:
+        return False
+    return bool(np.array_equal(_ink(frame, *TITLE_BOX), _TITLE))

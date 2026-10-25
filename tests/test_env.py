@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from neuronoid.env import ArkanoidEnv, ScreenState, reward_between
+from neuronoid.env import ArkanoidEnv, ScreenState, reward_between, update_known
 
 
 @pytest.fixture(scope="module")
@@ -71,3 +71,38 @@ def test_check_env(env):
     from gymnasium.utils.env_checker import check_env
 
     check_env(env, skip_render_check=True)
+
+
+def test_known_score_is_monotonic():
+    # ложное завышенное чтение не должно оплачиваться дважды
+    known, total = ScreenState(True, 100, 1, 2), 0.0
+    for sc in (300, 200, 300):
+        cur = ScreenState(True, sc, 1, 2)
+        total += reward_between(known, cur)
+        known = update_known(known, cur)
+    assert total == pytest.approx(2.0)
+
+
+def _force_frames(env, monkeypatch, frame):
+    def fake_advance(mouse):
+        env._frame = frame
+        return np.zeros((93, 96), np.uint8)
+
+    monkeypatch.setattr(env, "_advance", fake_advance)
+
+
+def test_blank_screen_does_not_end_episode(env, monkeypatch):
+    # переход между раундами может гасить поле: это не Game Over
+    env.reset(seed=0)
+    _force_frames(env, monkeypatch, np.zeros((200, 320, 3), np.uint8))
+    assert not any(env.step(0)[2] for _ in range(50))
+
+
+def test_title_screen_ends_episode(env, monkeypatch):
+    from PIL import Image
+    from pathlib import Path
+
+    env.reset(seed=0)
+    title = np.asarray(Image.open(Path(__file__).parent / "data/frames/idle_0099_not.png").convert("RGB"))
+    _force_frames(env, monkeypatch, title)
+    assert env.step(0)[2]

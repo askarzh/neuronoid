@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from neuronoid.screen import ScreenState, is_playing, read_lives, read_round, read_score, read_state
+from neuronoid.screen import ScreenState, is_playing, is_title_screen, read_lives, read_round, read_score, read_state
 
 FRAMES = Path(__file__).parent / "data" / "frames"
 LABELS = json.loads((FRAMES / "labels.json").read_text())
@@ -54,3 +54,11 @@ def test_read_lives_unknown_when_capsule_covers_icon():
     f = load("play_start.png")
     f[193:196, 52:56] = 0  # иконку частично закрыл чужой объект
     assert read_lives(f) is None
+
+
+TITLE_FRAMES = {n for n in LABELS if n.startswith("idle_") and n.endswith("_not.png")} | {"menu_2.png"}
+
+
+@pytest.mark.parametrize("name", sorted(LABELS))
+def test_is_title_screen(name):
+    assert is_title_screen(load(name)) == (name in TITLE_FRAMES)

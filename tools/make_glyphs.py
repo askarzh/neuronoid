@@ -12,6 +12,8 @@ from neuronoid.config import ROOT
 
 FRAMES = ROOT / "tests" / "data" / "frames"
 Y0, Y1, X0, CELL, DIGITS = 63, 69, 241, 8, 6
+# Подпись титульного экрана: слово PLAYER в заголовке таблицы рекордов.
+TITLE_FRAME, TITLE_BOX = "idle_0099_not.png", (81, 87, 57, 105)
 
 
 def main() -> None:
@@ -30,7 +32,9 @@ def main() -> None:
     missing = sorted(set("0123456789") - set(glyphs))
     if missing:
         raise SystemExit(f"не хватает цифр: {missing}")
-    np.savez(ROOT / "neuronoid" / "glyphs.npz", **glyphs)
+    y0, y1, x0, x1 = TITLE_BOX
+    title = np.asarray(Image.open(FRAMES / TITLE_FRAME).convert("RGB"))[y0:y1, x0:x1].max(axis=2) > 100
+    np.savez(ROOT / "neuronoid" / "glyphs.npz", TITLE=title, **glyphs)
     print("цифры собраны:", "".join(sorted(glyphs)))
 
 

@@ -4,8 +4,6 @@
 neuronoid.screen по кадру.
 """
 
-from dataclasses import replace
-
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
@@ -13,9 +11,9 @@ from gymnasium import spaces
 from neuronoid.boot import boot_to_round1
 from neuronoid.config import core_path, game_path
 from neuronoid.emulator import LibretroEmulator, Mouse
-from neuronoid.screen import ScreenState, read_state
+from neuronoid.screen import ScreenState, is_title_screen, read_state
 
-__all__ = ["ACTIONS", "ArkanoidEnv", "ScreenState", "reward_between"]
+__all__ = ["ACTIONS", "ArkanoidEnv", "ScreenState", "reward_between", "update_known"]
 
 # Ничего, огонь (запуск мяча / лазер), медленно и быстро влево/вправо.
 # Скорость ракетки игра ограничивает сама: около 1 и 2,5 пикселя за кадр.
@@ -32,7 +30,9 @@ SCORE_SCALE = 0.01
 MAX_SCORE_JUMP = 5000  # больший прирост за шаг — ошибка чтения, а не игра
 LIFE_PENALTY = -1.0
 ROUND_BONUS = 10.0
-GAME_OVER_FRAMES = 3  # столько шагов подряд без игрового поля — Game Over
+# Конец игры — титульный экран. Отсутствие поля само по себе не конец: переход
+# между раундами может гасить экран. На случай зависания — предохранитель.
+MAX_NOT_PLAYING_STEPS = 1000
 
 FIELD = (slice(4, 190), slice(32, 224))  # игровое поле внутри стен, 186×192
 OBS_SHAPE = (93, 96)
@@ -50,6 +50,19 @@ def reward_between(prev: ScreenState, cur: ScreenState) -> float:
     if prev.round is not None and cur.round is not None and cur.round > prev.round:
         reward += ROUND_BONUS
     return reward
+
+
+def update_known(known: ScreenState, cur: ScreenState) -> ScreenState:
+    """Последние известные значения: None не затирает, счёт только растёт."""
+    score = cur.score if cur.score is not None else known.score
+    if known.score is not None and score is not None:
+        score = max(known.score, score)  # ложное завышение не оплачивается дважды
+    return ScreenState(
+        playing=cur.playing,
+        score=score,
+        round=cur.round if cur.round is not None else known.round,
+        lives=cur.lives if cur.lives is not None else known.lives,
+    )
 
 
 def preprocess(frame: np.ndarray) -> np.ndarray:
@@ -167,13 +180,13 @@ class ArkanoidEnv(gym.Env):
         lost_life = (
             self._known.lives is not None and state.lives is not None and state.lives < self._known.lives
         )
-        self._known = replace(
-            self._known,
-            playing=state.playing,
-            **{k: v for k, v in (("score", state.score), ("round", state.round), ("lives", state.lives)) if v is not None},
-        )
+        self._known = update_known(self._known, state)
         self._not_playing = 0 if state.playing else self._not_playing + 1
-        terminated = self._not_playing >= GAME_OVER_FRAMES or (self.life_loss_terminal and lost_life)
+        terminated = (
+            is_title_screen(self._frame)
+            or self._not_playing >= MAX_NOT_PLAYING_STEPS
+            or (self.life_loss_terminal and lost_life)
+        )
         truncated = self._steps >= self.max_steps
         self._publish(state)
         return self._stack.copy(), reward, terminated, truncated, self._info(state)
