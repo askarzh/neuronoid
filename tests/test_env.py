@@ -178,3 +178,47 @@ def test_game_over_resets_to_round1_in_life_loss_mode(emu):
         env.reset()
     _, info = env.reset(seed=2)
     assert info["lives"] == 2 and info["score"] == 0  # свежая игра
+
+
+from neuronoid.curriculum import StartMeta, StartPool  # noqa: E402
+
+
+def test_env_offers_snapshots(emu, tmp_path):
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path,
+                      curriculum_prob=0.0, snapshot_every=5)
+    env.reset(seed=0)
+    for i in range(60):
+        env.step(1 if i < 3 else 0)
+    assert StartPool(tmp_path).stats().get(1, 0) >= 1
+
+
+def test_reset_from_pool_continues_that_position(emu, tmp_path):
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path,
+                      curriculum_prob=0.0, snapshot_every=5)
+    env.reset(seed=0)
+    for i in range(200):
+        *_, info = env.step(1 if i < 3 else 0)
+        if info["known_score"]:
+            break
+    env.curriculum_prob = 1.0
+    obs, info = env.reset(seed=1)
+    assert info["curriculum_start"] and info["gained_score"] == 0
+    assert info["known_score"] is not None
+    _, r, *_ = env.step(0)
+    assert r <= 2.0  # не «выстрел» разницей со старым эпизодом
+
+
+def test_broken_pool_entry_falls_back_to_round1(emu, tmp_path):
+    pool = StartPool(tmp_path)
+    pool.offer(b"not a savestate", StartMeta(1, 999, 999, 2))
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path, curriculum_prob=1.0)
+    _, info = env.reset(seed=0)
+    assert not info["curriculum_start"] and info["score"] == 0
+    assert pool.stats() == {}
+
+
+def test_without_pool_always_round1(emu):
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, life_loss_terminal=False)
+    for s in range(3):
+        _, info = env.reset(seed=s)
+        assert info["score"] == 0 and info["round"] == 1 and not info["curriculum_start"]

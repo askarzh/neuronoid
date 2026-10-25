@@ -8,7 +8,10 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from pathlib import Path
+
 from neuronoid.boot import boot_to_round1
+from neuronoid.curriculum import StartMeta, StartPool
 from neuronoid.config import core_path, game_path
 from neuronoid.emulator import LibretroEmulator, Mouse
 from neuronoid.screen import ScreenState, is_title_screen, read_state
@@ -121,10 +124,15 @@ class ArkanoidEnv(gym.Env):
         live: bool = False,
         emulator: LibretroEmulator | None = None,
         start_state: bytes | None = None,
+        start_pool: Path | None = None,
+        curriculum_prob: float = 0.5,
+        snapshot_every: int = 100,
     ):
         """`emulator`/`start_state` — для тестов: чужой эмулятор, уже знающий старт.
 
         Без них эмулятор создаётся при первом reset и проходит загрузку до раунда 1.
+        `start_pool` — учебная программа: среда сама кладёт туда позиции, до которых
+        дошёл агент, и с вероятностью `curriculum_prob` начинает новую игру с одной из них.
         """
         self.frame_skip = frame_skip
         self.frame_stack = frame_stack
@@ -146,6 +154,11 @@ class ArkanoidEnv(gym.Env):
         self._start_score: int | None = None
         self._jump = JumpConfirm()
         self._continue_game = False  # после потери жизни reset продолжает ту же игру
+        self._pool = StartPool(start_pool) if start_pool is not None else None
+        self.curriculum_prob = curriculum_prob
+        self.snapshot_every = snapshot_every
+        self._round_entry_score: int | None = None  # счёт при входе в текущий раунд
+        self._curriculum_start = False
         self._frame = None
         self._live_pub = None
 
@@ -183,6 +196,7 @@ class ArkanoidEnv(gym.Env):
             # очки, набранные с начала эпизода (без набранных за случайный старт)
             "gained_score": (k.score - self._start_score)
             if k.score is not None and self._start_score is not None else 0,
+            "curriculum_start": self._curriculum_start,
         }
 
     def _publish(self, state: ScreenState) -> None:
@@ -203,11 +217,15 @@ class ArkanoidEnv(gym.Env):
             state = read_state(self._frame)
             self._known = update_known(self._known, state)
         else:
-            emu.load_state(self._start)
-            for _ in range(int(self.np_random.integers(0, self.max_noop + 1))):
-                emu.step(mouse=ACTIONS[0], frames=self.frame_skip)
-            self._frame = emu.frame()
-            state = read_state(self._frame)
+            state = self._start_from_pool()
+            if state is None:
+                self._curriculum_start = False
+                emu.load_state(self._start)
+                for _ in range(int(self.np_random.integers(0, self.max_noop + 1))):
+                    emu.step(mouse=ACTIONS[0], frames=self.frame_skip)
+                self._frame = emu.frame()
+                state = read_state(self._frame)
+                self._round_entry_score = state.score
             self._known = state
         self._stack[:] = preprocess(self._frame)
         self._start_score = self._known.score
@@ -217,6 +235,40 @@ class ArkanoidEnv(gym.Env):
         self._not_playing = 0
         self._publish(state)
         return self._stack.copy(), self._info(state)
+
+    def _start_from_pool(self) -> ScreenState | None:
+        """Позиция из пула или None (пула нет, не выпало, пусто, позиция битая)."""
+        if self._pool is None or self.np_random.random() >= self.curriculum_prob:
+            return None
+        got = self._pool.sample(self.np_random)
+        if got is None:
+            return None
+        data, meta, path = got
+        try:
+            self._emu.load_state(data)
+            self._frame = self._emu.frame()
+            state = read_state(self._frame)
+            if not state.playing or state.score is None:
+                raise ValueError("позиция не игровая")
+        except (RuntimeError, ValueError):
+            self._pool.forget(path)
+            return None
+        self._curriculum_start = True
+        self._round_entry_score = state.score - meta.progress
+        return state
+
+    def _maybe_snapshot(self, state: ScreenState, lost_life: bool) -> None:
+        k = self._known
+        if (
+            self._pool is None
+            or self._steps % self.snapshot_every
+            or not state.playing
+            or lost_life
+            or None in (k.score, k.round, k.lives, self._round_entry_score)
+        ):
+            return
+        progress = max(0, k.score - self._round_entry_score)
+        self._pool.offer(self._emu.save_state(), StartMeta(k.round, progress, k.score, k.lives))
 
     def step(self, action):
         action = int(action)
@@ -233,13 +285,19 @@ class ArkanoidEnv(gym.Env):
         lost_life = (
             self._known.lives is not None and state.lives is not None and state.lives < self._known.lives
         )
+        prev_round = self._known.round
         self._known = update_known(self._known, state)
         base = self._jump.update(self._known.score, state.score)
         if base is not None:
             # подтверждённый бонус: новая база; очки за эпизод считаем без него
             if self._start_score is not None:
                 self._start_score += base - self._known.score
+            if self._round_entry_score is not None:
+                self._round_entry_score += base - self._known.score  # бонус — не разбитые кирпичи
             self._known = ScreenState(self._known.playing, base, self._known.round, self._known.lives)
+        if prev_round is not None and self._known.round is not None and self._known.round > prev_round:
+            self._round_entry_score = self._known.score  # новый раунд: прогресс с нуля
+        self._maybe_snapshot(state, lost_life)
         self._not_playing = 0 if state.playing else self._not_playing + 1
         terminated = (
             is_title_screen(self._frame)
