@@ -6,6 +6,7 @@
 """
 
 import argparse
+from pathlib import Path
 
 from neuronoid.config import ROOT, ConfigError, core_path, game_path
 from neuronoid.train import train
@@ -22,6 +23,9 @@ def main() -> None:
     ap.add_argument("--checkpoint-every", type=int, default=200_000)
     ap.add_argument("--no-live", action="store_true")
     ap.add_argument("--torch-threads", type=int, default=4)
+    ap.add_argument("--curriculum", action="store_true", help="старты с позиций, до которых дошёл агент")
+    ap.add_argument("--curriculum-prob", type=float, default=0.5)
+    ap.add_argument("--init-from", type=Path, help="новый прогон с весов этого чекпоинта")
     args = ap.parse_args()
     try:
         core_path(), game_path()
@@ -35,8 +39,9 @@ def main() -> None:
     try:
         latest = train(run_dir, args.steps, n_envs=args.envs, seed=args.seed, resume=args.resume,
                        device=args.device, checkpoint_every=args.checkpoint_every, live=not args.no_live,
-                       torch_threads=args.torch_threads)
-    except (FileExistsError, FileNotFoundError) as e:
+                       torch_threads=args.torch_threads, curriculum=args.curriculum,
+                       curriculum_prob=args.curriculum_prob, init_from=args.init_from)
+    except (FileExistsError, FileNotFoundError, ValueError) as e:
         raise SystemExit(str(e))
     print(f"Сохранено: {latest}")
 

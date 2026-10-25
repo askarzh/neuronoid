@@ -13,6 +13,7 @@ import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 
+from neuronoid.curriculum import StartPool
 from neuronoid.vec import make_vec_env
 
 # В духе Atari-настроек RL Zoo.
@@ -46,18 +47,21 @@ class ScoreCallback(BaseCallback):
     При обучении эпизод — одна жизнь (life_loss_terminal), поэтому это «за жизнь».
     """
 
-    def __init__(self):
+    def __init__(self, pool_dir: Path | None = None):
         super().__init__()
+        self._pool_dir = pool_dir
         self._scores: list[int] = []
         self._points: list[int] = []
         self._rounds: list[int] = []
+        self._curriculum: list[bool] = []
 
     def _on_step(self) -> bool:
         for info in self.locals["infos"]:
             ep = info.get("episode")
             if ep is None:
                 continue
-            for key, bucket in (("known_score", self._scores), ("gained_score", self._points), ("known_round", self._rounds)):
+            for key, bucket in (("known_score", self._scores), ("gained_score", self._points),
+                                ("known_round", self._rounds), ("curriculum_start", self._curriculum)):
                 if ep.get(key) is not None:
                     bucket.append(ep[key])
         return True
@@ -70,7 +74,14 @@ class ScoreCallback(BaseCallback):
             self.logger.record("neuronoid/points_mean", float(np.mean(self._points)))
         if self._rounds:
             self.logger.record("neuronoid/round_max", float(np.max(self._rounds)))
-        for bucket in (self._scores, self._points, self._rounds):
+        if self._curriculum:
+            self.logger.record("neuronoid/curriculum_share", float(np.mean(self._curriculum)))
+        if self._pool_dir is not None:
+            stats = StartPool(self._pool_dir).stats()
+            if stats:
+                self.logger.record("neuronoid/pool_round_max", float(max(stats)))
+                self.logger.record("neuronoid/pool_size", float(sum(stats.values())))
+        for bucket in (self._scores, self._points, self._rounds, self._curriculum):
             bucket.clear()
 
 
@@ -165,11 +176,18 @@ def train(
     checkpoint_every: int = 200_000,
     live: bool = True,
     torch_threads: int = 4,
+    curriculum: bool = False,
+    curriculum_prob: float = 0.5,
+    init_from: Path | None = None,
 ) -> Path:
     """Учит до `total_steps` шагов всего (при resume — досчитывает до этой цели).
 
     `torch_threads`: на ноутбуке 4 потока быстрее 16 — иначе torch отнимает ядра у сред.
+    `curriculum`: пул стартовых позиций в `run_dir/starts`. `init_from`: новый прогон
+    с весов чужого чекпоинта (счётчик шагов продолжается с него).
     """
+    if init_from is not None and resume:
+        raise ValueError("--init-from начинает новый прогон, --resume продолжает старый: выбери одно")
     torch.set_num_threads(torch_threads)
     run_dir = Path(run_dir)
     ckpt_dir = run_dir / "checkpoints"
@@ -187,7 +205,13 @@ def train(
             indent=1,
         )
     )
-    venv = make_vec_env(n_envs, seed=seed, life_loss_terminal=True, live=live)
+    pool_dir = run_dir / "starts" if curriculum else None
+    if init_from is not None:
+        start = Path(init_from)
+        if not start.exists():
+            raise FileNotFoundError(f"Нет чекпоинта: {start}")
+    venv = make_vec_env(n_envs, seed=seed, life_loss_terminal=True, live=live,
+                        start_pool=pool_dir, curriculum_prob=curriculum_prob)
     model = None
     dog = Watchdog()
     try:
@@ -205,7 +229,7 @@ def train(
         if done < total_steps:
             callbacks = CallbackList([
                 PeriodicSave(max(checkpoint_every // n_envs, 1), ckpt_dir),
-                ScoreCallback(),
+                ScoreCallback(pool_dir),
                 FeedWatchdog(dog),
             ])
             dog.start()

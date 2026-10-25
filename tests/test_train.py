@@ -123,3 +123,20 @@ def test_watchdog_quiet_while_steps_flow():
         time.sleep(0.1)
     dog.stop()
     assert not fired
+
+
+def test_init_from_starts_new_run_with_old_weights(tmp_path):
+    src = train(tmp_path / "a", total_steps=256, n_envs=2, live=False)
+    dst = train(tmp_path / "b", total_steps=512, n_envs=2, live=False, init_from=src)
+    m = PPO.load(dst)
+    assert m.num_timesteps >= 512 and (tmp_path / "a" / "checkpoints" / "latest.zip").exists()
+
+
+def test_init_from_with_resume_is_rejected(tmp_path):
+    with pytest.raises(ValueError):
+        train(tmp_path, total_steps=256, n_envs=2, live=False, resume=True, init_from=tmp_path / "x.zip")
+
+
+def test_curriculum_run_fills_pool(tmp_path):
+    train(tmp_path, total_steps=2048, n_envs=2, live=False, curriculum=True)
+    assert any((tmp_path / "starts").rglob("*.state"))
