@@ -1,0 +1,187 @@
+"""Gymnasium-среда: агент видит только пиксели, награда читается с экрана.
+
+Память эмулятора не читается: счёт, жизни, раунд и конец игры берутся из
+neuronoid.screen по кадру.
+"""
+
+from dataclasses import replace
+
+import gymnasium as gym
+import numpy as np
+from gymnasium import spaces
+
+from neuronoid.boot import boot_to_round1
+from neuronoid.config import core_path, game_path
+from neuronoid.emulator import LibretroEmulator, Mouse
+from neuronoid.screen import ScreenState, read_state
+
+__all__ = ["ACTIONS", "ArkanoidEnv", "ScreenState", "reward_between"]
+
+# Ничего, огонь (запуск мяча / лазер), медленно и быстро влево/вправо.
+# Скорость ракетки игра ограничивает сама: около 1 и 2,5 пикселя за кадр.
+ACTIONS: tuple[Mouse, ...] = (
+    Mouse(),
+    Mouse(left=True),
+    Mouse(dx=-4),
+    Mouse(dx=4),
+    Mouse(dx=-12),
+    Mouse(dx=12),
+)
+
+SCORE_SCALE = 0.01
+MAX_SCORE_JUMP = 5000  # больший прирост за шаг — ошибка чтения, а не игра
+LIFE_PENALTY = -1.0
+ROUND_BONUS = 10.0
+GAME_OVER_FRAMES = 3  # столько шагов подряд без игрового поля — Game Over
+
+FIELD = (slice(4, 190), slice(32, 224))  # игровое поле внутри стен, 186×192
+OBS_SHAPE = (93, 96)
+
+
+def reward_between(prev: ScreenState, cur: ScreenState) -> float:
+    """Награда за переход между последними известными значениями и новым кадром."""
+    reward = 0.0
+    if prev.score is not None and cur.score is not None:
+        gain = cur.score - prev.score
+        if 0 < gain <= MAX_SCORE_JUMP:
+            reward += gain * SCORE_SCALE
+    if prev.lives is not None and cur.lives is not None and cur.lives < prev.lives:
+        reward += LIFE_PENALTY
+    if prev.round is not None and cur.round is not None and cur.round > prev.round:
+        reward += ROUND_BONUS
+    return reward
+
+
+def preprocess(frame: np.ndarray) -> np.ndarray:
+    """Поле -> оттенки серого -> среднее по блокам 2×2: uint8 (93, 96)."""
+    field = frame[FIELD].astype(np.float32)
+    gray = field @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    small = gray.reshape(OBS_SHAPE[0], 2, OBS_SHAPE[1], 2).mean(axis=(1, 3))
+    return small.astype(np.uint8)
+
+
+class ArkanoidEnv(gym.Env):
+    metadata = {"render_modes": []}
+
+    def __init__(
+        self,
+        frame_skip: int = 4,
+        frame_stack: int = 4,
+        sticky_prob: float = 0.25,
+        max_noop: int = 30,
+        life_loss_terminal: bool = False,
+        max_steps: int = 27_000,
+        live: bool = False,
+        emulator: LibretroEmulator | None = None,
+        start_state: bytes | None = None,
+    ):
+        """`emulator`/`start_state` — для тестов: чужой эмулятор, уже знающий старт.
+
+        Без них эмулятор создаётся при первом reset и проходит загрузку до раунда 1.
+        """
+        self.frame_skip = frame_skip
+        self.frame_stack = frame_stack
+        self.sticky_prob = sticky_prob
+        self.max_noop = max_noop
+        self.life_loss_terminal = life_loss_terminal
+        self.max_steps = max_steps
+        self.live = live
+        self._emu = emulator
+        self._owns_emu = emulator is None
+        self._start = start_state
+        self.action_space = spaces.Discrete(len(ACTIONS))
+        self.observation_space = spaces.Box(0, 255, (frame_stack, *OBS_SHAPE), np.uint8)
+        self._stack = np.zeros((frame_stack, *OBS_SHAPE), np.uint8)
+        self._known = ScreenState(False, None, None, None)
+        self._prev_action = 0
+        self._steps = 0
+        self._not_playing = 0
+        self._frame = None
+        self._live_pub = None
+
+    def _ensure_emulator(self) -> LibretroEmulator:
+        if self._emu is None:
+            self._emu = LibretroEmulator(core_path(), game_path())
+        if self._start is None:
+            boot_to_round1(self._emu)
+            self._start = self._emu.save_state()
+        return self._emu
+
+    def _advance(self, mouse: Mouse) -> np.ndarray:
+        """frame_skip кадров; наблюдение — максимум двух последних (против мерцания)."""
+        emu = self._emu
+        if self.frame_skip > 1:
+            emu.step(mouse=mouse, frames=self.frame_skip - 1)
+            before = emu.frame()
+            emu.step(mouse=mouse)
+        else:
+            emu.step(mouse=mouse)
+            before = None
+        self._frame = emu.frame()
+        obs = preprocess(self._frame)
+        if before is not None and before.shape == self._frame.shape:
+            obs = np.maximum(obs, preprocess(before))
+        return obs
+
+    def _info(self, state: ScreenState) -> dict:
+        return {"score": state.score, "round": state.round, "lives": state.lives, "playing": state.playing}
+
+    def _publish(self, state: ScreenState) -> None:
+        if self.live:
+            if self._live_pub is None:
+                from neuronoid.live import LivePublisher
+
+                self._live_pub = LivePublisher()
+            self._live_pub.publish(self._frame, self._info(state))
+
+    def reset(self, *, seed: int | None = None, options: dict | None = None):
+        super().reset(seed=seed)
+        emu = self._ensure_emulator()
+        emu.load_state(self._start)
+        self._frame = emu.frame()
+        for _ in range(int(self.np_random.integers(0, self.max_noop + 1))):
+            emu.step(mouse=ACTIONS[0], frames=self.frame_skip)
+        self._frame = emu.frame()
+        obs = preprocess(self._frame)
+        self._stack[:] = obs
+        state = read_state(self._frame)
+        self._known = state
+        self._prev_action = 0
+        self._steps = 0
+        self._not_playing = 0
+        self._publish(state)
+        return self._stack.copy(), self._info(state)
+
+    def step(self, action):
+        action = int(action)
+        if self.np_random.random() < self.sticky_prob:
+            action = self._prev_action
+        self._prev_action = action
+        obs = self._advance(ACTIONS[action])
+        self._stack = np.roll(self._stack, -1, axis=0)
+        self._stack[-1] = obs
+        self._steps += 1
+
+        state = read_state(self._frame)
+        reward = reward_between(self._known, state)
+        lost_life = (
+            self._known.lives is not None and state.lives is not None and state.lives < self._known.lives
+        )
+        self._known = replace(
+            self._known,
+            playing=state.playing,
+            **{k: v for k, v in (("score", state.score), ("round", state.round), ("lives", state.lives)) if v is not None},
+        )
+        self._not_playing = 0 if state.playing else self._not_playing + 1
+        terminated = self._not_playing >= GAME_OVER_FRAMES or (self.life_loss_terminal and lost_life)
+        truncated = self._steps >= self.max_steps
+        self._publish(state)
+        return self._stack.copy(), reward, terminated, truncated, self._info(state)
+
+    def close(self) -> None:
+        if self._live_pub is not None:
+            self._live_pub.close()
+            self._live_pub = None
+        if self._owns_emu and self._emu is not None:
+            self._emu.close()
+            self._emu = None
