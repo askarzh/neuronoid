@@ -66,3 +66,9 @@ def test_tracker_quiet_on_non_game_frames():
     t = settled(load("play_start.png"))
     e = t.update(load("idle_0099_not.png"))
     assert e == BrickEvents(0, 0, None)
+
+
+def test_remaining_unknown_during_warmup():
+    t = BrickTracker()
+    f = load("play_start.png")
+    assert [t.update(f).remaining for _ in range(5)] == [None, None, None, 66, 66]

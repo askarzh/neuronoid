@@ -301,6 +301,8 @@ class ArkanoidEnv(gym.Env):
             or None in (k.score, k.round, k.lives, self._round_entry_score)
         ):
             return
+        if not self._bricks.remaining:
+            return  # число кирпичей неизвестно или 0 (раунд вот-вот сменится) — такой старт бесполезен
         progress = max(0, k.score - self._round_entry_score)
         meta = StartMeta(k.round, progress, k.score, k.lives, bricks_left=self._bricks.remaining)
         self._pending.append((self._steps, self._emu.save_state(), meta))

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -304,3 +305,14 @@ def test_no_brick_reward_on_round_change(env, monkeypatch):
     _force_frames(env, monkeypatch, _frame("idle_0924_play.png"))
     rewards = [env.step(0)[1] for _ in range(6)]
     assert max(rewards) <= ROUND_BONUS + 1  # бонус за раунд — да, «выстрел» за 66 кирпичей — нет
+
+
+def test_no_snapshot_without_known_bricks(emu, tmp_path):
+    # снимок с «0 кирпичей» во время прогрева трекера отравил бы пул
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, start_pool=tmp_path,
+                      curriculum_prob=0.0, snapshot_every=1, snapshot_confirm_steps=1)
+    env.reset(seed=0)
+    for i in range(30):
+        env.step(1 if i < 3 else 0)
+    metas = [json.loads(p.read_text()) for p in tmp_path.rglob("*.json")]
+    assert metas and all(m["bricks_left"] not in (None, 0) for m in metas)

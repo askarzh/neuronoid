@@ -32,15 +32,20 @@ class BrickTracker:
         self._on: np.ndarray | None = None  # шагов подряд «есть кирпич»
         self._off: np.ndarray | None = None  # шагов подряд «нет» у устойчивого кирпича
         self._stable: np.ndarray | None = None
+        self._seen = 0  # игровых кадров с последнего сброса
 
     @property
     def remaining(self) -> int | None:
-        return None if self._stable is None else int(self._stable.sum())
+        # пока трекер не прогрелся, «0 кирпичей» было бы ложью (снимок с ним отравил бы пул)
+        if self._stable is None or self._seen < STABLE_STEPS:
+            return None
+        return int(self._stable.sum())
 
     def update(self, frame: np.ndarray) -> BrickEvents:
         cells = brick_cells(frame)
         if cells is None:
             return BrickEvents(0, 0, None)
+        self._seen += 1
         if self._stable is None:
             self._on = np.zeros(cells.shape, np.int32)
             self._off = np.zeros(cells.shape, np.int32)

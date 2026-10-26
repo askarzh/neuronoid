@@ -129,3 +129,33 @@ class StartPool:
 
     def stats(self) -> dict[int, int]:
         return {int(b.name): n for b in self._buckets() if (n := len(self._entries(b)))}
+
+
+def annotate_bricks(root: Path, emu) -> int:
+    """Досчитывает bricks_left позициям без него (пул до этапа 4): грузит позицию и считает кирпичи.
+
+    Возвращает число обновлённых позиций.
+    """
+    from neuronoid.screen import brick_cells
+
+    pool = StartPool(root)
+    done = 0
+    for bucket in pool._buckets():
+        for meta, path in pool._entries(bucket):
+            if meta.bricks_left is not None:
+                continue
+            try:
+                emu.load_state(path.with_suffix(".state").read_bytes())
+            except (OSError, RuntimeError):
+                _remove(path)
+                continue
+            cells = brick_cells(emu.frame())
+            if cells is None:
+                _remove(path)  # позиция не игровая — в пуле ей не место
+                continue
+            data = asdict(meta) | {"bricks_left": int(cells.sum())}
+            tmp = path.with_name(path.name + ".tmp")
+            tmp.write_text(json.dumps(data))
+            os.replace(tmp, path)
+            done += 1
+    return done

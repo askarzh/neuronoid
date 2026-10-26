@@ -112,3 +112,15 @@ def test_old_meta_without_bricks_left_still_loads(tmp_path):
     (tmp_path / "1" / "5-old.json").write_text('{"round": 1, "progress": 5, "score": 5, "lives": 2}')
     state, meta, _ = pool.sample(np.random.default_rng(0))
     assert state == b"s" and meta.bricks_left is None
+
+
+def test_annotate_old_positions_with_bricks(emu, tmp_path):
+    from neuronoid.curriculum import annotate_bricks
+
+    pool = StartPool(tmp_path)
+    (tmp_path / "1").mkdir()
+    (tmp_path / "1" / "5-old.state").write_bytes(emu.round1_state)
+    (tmp_path / "1" / "5-old.json").write_text('{"round": 1, "progress": 5, "score": 0, "lives": 2}')
+    assert annotate_bricks(tmp_path, emu) == 1
+    _, meta, _ = pool.sample(np.random.default_rng(0))
+    assert meta.bricks_left == 66
