@@ -349,3 +349,21 @@ def test_target_action_moves_paddle_to_target(emu):
         env.step(34)
     right = paddle_center(env._frame)
     assert abs(left - target_x(5)) <= 4 and abs(right - target_x(34)) <= 4
+
+
+def _row_frame(runs):
+    f = np.zeros((200, 320, 3), np.uint8)
+    for x, n in runs:
+        f[178, x:x + n] = 170
+    return f
+
+
+def test_paddle_center_ignores_capsule_on_paddle_row():
+    # капсула (15 пикселей) левее ракетки не должна перехватывать её положение
+    f = _row_frame([(56, 15), (123, 4), (128, 15), (144, 4)])
+    assert paddle_center(f) == pytest.approx(135.0, abs=0.6)
+
+
+def test_paddle_center_enlarged_paddle():
+    f = _row_frame([(90, 4), (95, 27), (123, 4)])
+    assert paddle_center(f) == pytest.approx(108.0, abs=0.6)

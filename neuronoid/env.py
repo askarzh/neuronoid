@@ -140,21 +140,31 @@ def target_x(i: int) -> float:
 
 
 def paddle_center(frame: np.ndarray) -> float | None:
-    """Центр ракетки по пикселям: самый длинный непрерывный отрезок в строке ракетки."""
+    """Центр ракетки по пикселям строки ракетки, по её рисунку «наконечник — середина — наконечник».
+
+    В строке ракетка — три отрезка: наконечники по 2–6 пикселей и середина от 10
+    (у расширенной ракетки шире), разделённые зазорами в 1–2 пикселя. Падающая
+    капсула — один отрезок той же ширины, что и середина, поэтому «самый длинный
+    отрезок» её путал с ракеткой. Не нашли рисунок — None (контроллер стоит).
+    """
     if frame.shape != (200, 320, 3):
         return None
-    ink = frame[PADDLE_ROW, 40:216].max(axis=1) > 100
-    best, start, best_span = 0, None, None
-    for i, v in enumerate(np.append(ink, False)):
+    ink = np.append(frame[PADDLE_ROW, 40:216].max(axis=1) > 100, False)
+    runs, start = [], None
+    for i, v in enumerate(ink):
         if v and start is None:
             start = i
         elif not v and start is not None:
-            if i - start > best:
-                best, best_span = i - start, (start, i - 1)
+            runs.append((start, i - start))
             start = None
-    if best < 12:  # мяч или осколок, а не ракетка
-        return None
-    return 40 + (best_span[0] + best_span[1]) / 2
+    best = None
+    for (a0, an), (b0, bn), (c0, cn) in zip(runs, runs[1:], runs[2:]):
+        gap_ab, gap_bc = b0 - (a0 + an), c0 - (b0 + bn)
+        if 2 <= an <= 6 and 2 <= cn <= 6 and bn >= 10 and 1 <= gap_ab <= 2 and 1 <= gap_bc <= 2:
+            width = c0 + cn - a0
+            if best is None or width > best[0]:
+                best = (width, 40 + (a0 + c0 + cn - 1) / 2)
+    return None if best is None else best[1]
 
 
 def controller_dx(target: float, center: float | None) -> int:
