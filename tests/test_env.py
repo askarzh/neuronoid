@@ -271,3 +271,36 @@ def test_capsule_points_are_capped():
 
     assert reward_between(s(1000), s(2000)) == pytest.approx(2.0)
     assert reward_between(s(1000), s(1120)) == pytest.approx(1.2)  # кирпич — как раньше
+
+
+from neuronoid.bricks import BrickEvents  # noqa: E402
+from neuronoid.env import ROUND_BONUS, brick_reward  # noqa: E402
+
+
+def test_brick_reward_function():
+    assert brick_reward(BrickEvents(1, 0, 30)) == pytest.approx(0.5)
+    assert brick_reward(BrickEvents(1, 0, 9)) == pytest.approx(2.5)
+    assert brick_reward(BrickEvents(0, 0, None)) == 0
+
+
+def test_round1_brick_reward_is_bounded():
+    total = sum(brick_reward(BrickEvents(1, 0, left)) for left in range(65, -1, -1))
+    assert total <= 60 and total < 2 * ROUND_BONUS
+
+
+def test_env_reports_bricks_left(env):
+    env.reset(seed=0)
+    for _ in range(10):
+        *_, info = env.step(0)
+    assert 60 <= info["bricks_left"] <= 66  # мяч вылетает сам и может успеть разбить кирпич-другой
+
+
+def test_no_brick_reward_on_round_change(env, monkeypatch):
+    # стена сменилась целиком (раунд 1 -> раунд 2): «разрушений» нет
+    env.reset(seed=0)
+    _force_frames(env, monkeypatch, _frame("play_start.png"))
+    for _ in range(6):
+        env.step(0)
+    _force_frames(env, monkeypatch, _frame("idle_0924_play.png"))
+    rewards = [env.step(0)[1] for _ in range(6)]
+    assert max(rewards) <= ROUND_BONUS + 1  # бонус за раунд — да, «выстрел» за 66 кирпичей — нет

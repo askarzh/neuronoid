@@ -11,12 +11,13 @@ from gymnasium import spaces
 from pathlib import Path
 
 from neuronoid.boot import boot_to_round1
+from neuronoid.bricks import BrickEvents, BrickTracker
 from neuronoid.curriculum import StartMeta, StartPool
 from neuronoid.config import core_path, game_path
 from neuronoid.emulator import LibretroEmulator, Mouse
 from neuronoid.screen import ScreenState, is_title_screen, read_state
 
-__all__ = ["ACTIONS", "ArkanoidEnv", "JumpConfirm", "ScreenState", "reward_between", "update_known"]
+__all__ = ["ACTIONS", "ArkanoidEnv", "JumpConfirm", "ScreenState", "brick_reward", "reward_between", "update_known"]
 
 # Ничего, огонь (запуск мяча / лазер), медленно и быстро влево/вправо.
 # Скорость ракетки игра ограничивает сама: около 1 и 2,5 пикселя за кадр.
@@ -38,6 +39,12 @@ SCORE_CAP = 200
 MAX_SCORE_JUMP = 5000  # больший прирост за шаг — ошибка чтения, а не игра
 LIFE_PENALTY = -1.0
 ROUND_BONUS = 50.0  # прохождение раунда — главная цель
+# Плотный сигнал за кирпичи (их видно в пикселях поля), сильнее на последних:
+# агент застревал, когда в раунде оставалось несколько трудных кирпичей.
+BRICK_REWARD = 0.5
+FEW_BRICKS = 10
+LAST_BRICKS_BONUS = 2.0
+SILVER_HIT_REWARD = 0.0  # удар по серому кирпичу на экране не увидели (журнал этапа 4)
 # Конец игры — титульный экран. Отсутствие поля само по себе не конец: переход
 # между раундами может гасить экран. На случай зависания — предохранитель.
 MAX_NOT_PLAYING_STEPS = 1000
@@ -57,6 +64,13 @@ def reward_between(prev: ScreenState, cur: ScreenState) -> float:
         reward += LIFE_PENALTY
     if prev.round is not None and cur.round is not None and cur.round > prev.round:
         reward += ROUND_BONUS
+    return reward
+
+
+def brick_reward(events: BrickEvents) -> float:
+    reward = events.destroyed * BRICK_REWARD + events.silver_hits * SILVER_HIT_REWARD
+    if events.destroyed and events.remaining is not None and events.remaining <= FEW_BRICKS:
+        reward += events.destroyed * LAST_BRICKS_BONUS
     return reward
 
 
@@ -133,6 +147,7 @@ class ArkanoidEnv(gym.Env):
         curriculum_prob: float = 0.5,
         snapshot_every: int = 100,
         snapshot_confirm_steps: int = 60,
+        use_brick_reward: bool = True,
     ):
         """`emulator`/`start_state` — для тестов: чужой эмулятор, уже знающий старт.
 
@@ -170,6 +185,8 @@ class ArkanoidEnv(gym.Env):
         self._pending: list[tuple[int, bytes, StartMeta]] = []
         self._round_entry_score: int | None = None  # счёт при входе в текущий раунд
         self._curriculum_start = False
+        self.use_brick_reward = use_brick_reward
+        self._bricks = BrickTracker()
         self._frame = None
         self._live_pub = None
 
@@ -208,6 +225,7 @@ class ArkanoidEnv(gym.Env):
             "gained_score": (k.score - self._start_score)
             if k.score is not None and self._start_score is not None else 0,
             "curriculum_start": self._curriculum_start,
+            "bricks_left": self._bricks.remaining,
         }
 
     def _publish(self, state: ScreenState) -> None:
@@ -240,6 +258,7 @@ class ArkanoidEnv(gym.Env):
             self._known = state
         self._stack[:] = preprocess(self._frame)
         self._pending.clear()
+        self._bricks.reset()  # новая игра, позиция из пула или следующая жизнь: стену видим заново
         self._start_score = self._known.score
         self._jump = JumpConfirm()
         self._prev_action = 0
@@ -330,6 +349,10 @@ class ArkanoidEnv(gym.Env):
             self._known = ScreenState(self._known.playing, base, self._known.round, self._known.lives)
         if prev_round is not None and self._known.round is not None and self._known.round > prev_round:
             self._round_entry_score = self._known.score  # новый раунд: прогресс с нуля
+            self._bricks.reset()  # новая стена — не «разрушение» старой
+        events = self._bricks.update(self._frame)
+        if self.use_brick_reward and not new_game:
+            reward += brick_reward(events)
         self._not_playing = 0 if state.playing else self._not_playing + 1
         game_over = new_game or is_title_screen(self._frame) or self._not_playing >= MAX_NOT_PLAYING_STEPS
         self._confirm_snapshots(bad=lost_life or game_over)
