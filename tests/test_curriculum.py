@@ -124,3 +124,14 @@ def test_annotate_old_positions_with_bricks(emu, tmp_path):
     assert annotate_bricks(tmp_path, emu) == 1
     _, meta, _ = pool.sample(np.random.default_rng(0))
     assert meta.bricks_left == 66
+
+
+def test_bucket_keeps_variety_of_bricks_left(tmp_path):
+    # иначе корзина застывает на позициях «1 кирпич», а середина конца раунда в неё не попадает
+    pool = StartPool(tmp_path, per_round=40, per_bricks_value=5)
+    for i in range(10):
+        pool.offer(b"x", StartMeta(1, 100 + i, 100, 2, bricks_left=1))
+    assert pool.stats() == {1: 5}
+    assert pool.offer(b"y", StartMeta(1, 50, 100, 2, bricks_left=12))
+    lefts = sorted(m.bricks_left for m, _ in pool._entries(tmp_path / "1"))
+    assert lefts == [1, 1, 1, 1, 1, 12]

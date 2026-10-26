@@ -17,6 +17,9 @@ import numpy as np
 PER_ROUND = 40
 FRONT_ROUND = 1  # раунд, на котором агент застревает: туда — заметная доля стартов
 FRONT_SHARE = 0.5
+# Не больше стольких позиций с одинаковым числом оставшихся кирпичей: иначе корзина
+# застывает на «1 кирпич», и середина конца раунда (5–15 кирпичей) в неё не попадает.
+PER_BRICKS_VALUE = 5
 
 
 @dataclass(frozen=True)
@@ -50,11 +53,12 @@ def _remove(path: Path) -> None:
 
 class StartPool:
     def __init__(self, root: Path, per_round: int = PER_ROUND, front_round: int = FRONT_ROUND,
-                 front_share: float = FRONT_SHARE):
+                 front_share: float = FRONT_SHARE, per_bricks_value: int = PER_BRICKS_VALUE):
         self.root = Path(root)
         self.per_round = per_round
         self.front_round = front_round
         self.front_share = front_share
+        self.per_bricks_value = per_bricks_value
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _entries(self, bucket: Path) -> list[tuple[StartMeta, Path]]:
@@ -75,6 +79,10 @@ class StartPool:
         bucket = self.root / str(meta.round)
         bucket.mkdir(exist_ok=True)
         entries = self._entries(bucket)
+        if meta.bricks_left is not None:
+            same = [e for e in entries if e[0].bricks_left == meta.bricks_left]
+            if len(same) >= self.per_bricks_value and rank(meta) <= rank(same[0][0]):
+                return False  # таких позиций уже хватает, а эта не лучше худшей из них
         if len(entries) >= self.per_round and rank(meta) <= rank(entries[0][0]):
             return False
         stem = bucket / f"{meta.progress}-{uuid.uuid4().hex}"
@@ -100,6 +108,13 @@ class StartPool:
         """Удаляет худшие позиции сверх лимита (на Windows занятый файл удалится при следующей чистке)."""
         buckets = [self.root / str(round_)] if round_ is not None else self._buckets()
         for bucket in buckets:
+            groups: dict[int, list] = {}
+            for meta, path in self._entries(bucket):
+                if meta.bricks_left is not None:
+                    groups.setdefault(meta.bricks_left, []).append(path)
+            for paths in groups.values():  # худшие в начале каждой группы
+                for path in paths[: max(0, len(paths) - self.per_bricks_value)]:
+                    _remove(path)
             entries = self._entries(bucket)
             for _, path in entries[: max(0, len(entries) - self.per_round)]:
                 _remove(path)
