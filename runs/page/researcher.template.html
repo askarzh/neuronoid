@@ -1,0 +1,257 @@
+<title>Исследователь Арканоида</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&family=Silkscreen&display=swap">
+<style>
+/* Лабораторный журнал на фоне IBM PC: бумага журнала, синий EGA как акцент, пурпурный EGA — второй цвет данных */
+:root {
+  --bg: #f6f6f2;
+  --surface: #ffffff;
+  --ink: #16172b;
+  --muted: #5c5f78;
+  --rule: #d9dae6;
+  --accent: #1f2fb0;
+  --accent-soft: #e6e8fb;
+  --second: #a0209f;
+  --good: #1d7a43;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --pixel: "Silkscreen", var(--mono);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10111f; --surface: #181a2c; --ink: #e8e9f4; --muted: #a2a5c2; --rule: #2c2f4a;
+    --accent: #8f9cff; --accent-soft: #232750; --second: #e57ae4; --good: #5fd08f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10111f; --surface: #181a2c; --ink: #e8e9f4; --muted: #a2a5c2; --rule: #2c2f4a;
+  --accent: #8f9cff; --accent-soft: #232750; --second: #e57ae4; --good: #5fd08f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.12rem; font-weight: 600; }
+p { margin: 0; max-width: 66ch; }
+.eyebrow { font-family: var(--pixel); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 1.14rem; color: var(--muted); }
+section { display: grid; gap: 18px; padding-block: 36px; border-top: 1px solid var(--rule); }
+header { display: grid; gap: 16px; padding-bottom: 28px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.hero figure { margin: 0; display: grid; gap: 8px; }
+.hero img { width: 100%; image-rendering: pixelated; border: 1px solid var(--rule); border-radius: 4px; background: #000; }
+figcaption, .note { font-size: 0.86rem; color: var(--muted); }
+.vs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.vs > div { padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+.vs > div + div { border-left: 1px solid var(--rule); }
+.vs .who { font-family: var(--pixel); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--muted); }
+.vs .win .who { color: var(--accent); }
+dl.facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 0.95rem; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.chart { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 10px 8px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.chart text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.chart .lbl { fill: var(--ink); font-weight: 600; }
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+ol.steps > li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 18px; padding: 18px 0; border-top: 1px dashed var(--rule); }
+ol.steps > li:first-child { border-top: 0; }
+.time { font-family: var(--mono); font-size: 0.86rem; color: var(--accent); font-weight: 600; padding-top: 2px; }
+.step { display: grid; gap: 8px; min-width: 0; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-family: var(--mono); font-size: 0.76rem; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.tag.fail { background: transparent; border: 1px solid var(--rule); color: var(--muted); }
+.think { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 0.95rem; }
+.think dt { font-family: var(--pixel); font-size: 0.66rem; letter-spacing: 0.06em; color: var(--muted); padding-top: 5px; }
+.think dd { margin: 0; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 0.93rem; min-width: 620px; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--rule); vertical-align: top; }
+thead th { border-top: 0; font-family: var(--pixel); font-size: 0.68rem; letter-spacing: 0.06em; color: var(--muted); font-weight: 400; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zones { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.zones div { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 8px 6px; text-align: center; display: grid; gap: 4px; }
+.zones svg { width: 100%; max-width: 54px; height: 34px; margin: 0 auto; }
+.zones b { font-family: var(--mono); font-size: 0.8rem; }
+.zones span { font-size: 0.76rem; color: var(--muted); }
+.cols2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.cols2 > div { display: grid; gap: 10px; align-content: start; min-width: 0; }
+ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+code { font-family: var(--mono); font-size: 0.9em; }
+@media (max-width: 720px) {
+  .hero, .cols2, .vs { grid-template-columns: minmax(0, 1fr); }
+  .vs > div + div { border-left: 0; border-top: 1px solid var(--rule); }
+  ol.steps > li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .zones { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Neuronoid · эксперимент «стратег»</span>
+    <h1>Как большая модель сама разобралась в DOS-Арканоиде</h1>
+    <p class="lede">Отдельной сессии Claude дали только «тело» — эмулятор с игрой с момента включения, экран, клавиатуру,
+      мышь и сохранения — и задание «разберись и играй как можно лучше». Без описаний игры, без наших знаний,
+      без доступа к основному проекту. Ниже — как она рассуждала, по её журналу и коммитам.</p>
+  </header>
+
+  <div class="hero">
+    <div class="vs">
+      <div>
+        <span class="who">RL-агент · PPO по пикселям</span>
+        <dl class="facts">
+          <dt>Обучение</dt><dd>~2 суток, 17 млн шагов</dd>
+          <dt>Средний счёт</dt><dd>7 312</dd>
+          <dt>Лучший раунд</dt><dd>1 (раунд 2 — только через «B»)</dd>
+          <dt>Жизни</dt><dd>обычно теряет все 3</dd>
+        </dl>
+      </div>
+      <div class="win">
+        <span class="who">Исследователь · рассуждение + код</span>
+        <dl class="facts">
+          <dt>Работа</dt><dd>~2,5 часа</dd>
+          <dt>Средний счёт</dt><dd>{{JUDGE_MEAN}}</dd>
+          <dt>Раунд к 20-й минуте</dt><dd>{{JUDGE_ROUNDS}}</dd>
+          <dt>Game Over</dt><dd>ни в одной из 10 игр</dd>
+        </dl>
+      </div>
+    </div>
+    <figure>
+      <img src="{{IMG}}" alt="Кадр игры исследователя: раунд 18, счёт 172 980, пять запасных ракеток">
+      <figcaption>Игрок исследователя, раунд 18, 172 980 очков, пять запасных жизней. Кадр из партии с включения питания.</figcaption>
+    </figure>
+  </div>
+  <p class="note" style="margin-top:14px">Счёт и раунды исследователя — оценка нашим судьёй: 10 игр с включения питания,
+    по 20 минут игрового времени, итог читается с экрана теми же датчиками, что оценивали RL-агента.</p>
+
+  <section>
+    <span class="eyebrow">Ход результата</span>
+    <h2>Восемь коммитов за два с половиной часа</h2>
+    <div class="chart" role="img" aria-label="Счёт за 20 минут игры по версиям игрока, от 28 950 до 187 490">
+      {{CHART}}
+    </div>
+    <p class="note">Счёт одной партии с включения (сид 0) на стенде исследователя за 20 минут игрового времени; последняя точка — среднее по 4 партиям.
+      Пунктир внизу — лучший средний счёт RL-агента за 17 млн шагов.</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">Как он думал</span>
+    <h2>Наблюдение → гипотеза → эксперимент → вывод</h2>
+    <p>Главный приём — сохранения: из одного и того же момента игры он пробует разные действия и сравнивает исходы.
+      Каждая находка ниже записана им самим в журнал <code>LOG.md</code>.</p>
+    <ol class="steps">
+      <li><span class="time">11:58</span><div class="step">
+        <h3>Включение и меню</h3>
+        <dl class="think">
+          <dt>Увидел</dt><dd>Текстовое синее окно «Please select a video mode»: CGA, EGA, Tandy. Потом «input device»: Mouse, Joystick, Keyboard.</dd>
+          <dt>Проверил</dt><dd>Нажатие длиной в один кадр засчитывается — значит, игроку не нужно удерживать клавиши между вызовами.</dd>
+          <dt>Нашёл сам</dt><dd>Второй клик во время вступительной истории пропускает её и сразу ведёт в раунд 1.</dd>
+        </dl>
+        <div class="tags"><span class="tag">EGA</span><span class="tag">мышь</span><span class="tag fail">ошибка: детектор меню смотрел в белый текст</span></div>
+      </div></li>
+      <li><span class="time">12:07</span><div class="step">
+        <h3>Устройство мира и первый игрок (v0)</h3>
+        <dl class="think">
+          <dt>Измерил</dt><dd>Поле, сетку кирпичей 16×8, рисунок мяча 5×5, ракетку в 25 пикселей; мяч сам стартует через ~125 кадров.</dd>
+          <dt>Эксперимент</dt><dd>Мышь: сдвиг <code>dx</code> двигает ракетку на <code>dx/4</code> пикселя, задержка ровно 3 кадра, <b>скорости нет предела</b>.</dd>
+          <dt>Вывод</dt><dd>«Защита может быть почти идеальной; вопрос в прицеливании». Игрок предсказывает точку падения с отражениями от стен.</dd>
+        </dl>
+        <div class="tags"><span class="tag">28 950 · раунд 3</span></div>
+      </div></li>
+      <li><span class="time">12:16</span><div class="step">
+        <h3>Разбор потерь покадрово (v1)</h3>
+        <dl class="think">
+          <dt>Почему проиграл</dt><dd>Сверка «экран против команды» раскачивала ракетку на 100+ пикселей; верх врага-«молекулы» совпал с неполным шаблоном мяча.</dd>
+          <dt>Исправил</dt><dd>Позиция = видимая + сдвиги последних 3 команд; полный шаблон мяча; трек нескольких мячей.</dd>
+        </dl>
+        <div class="tags"><span class="tag">101 820 · раунд 9 · без потерь</span></div>
+      </div></li>
+      <li><span class="time">12:43</span><div class="step">
+        <h3>Открыл механизм отскока сам (v2)</h3>
+        <dl class="think">
+          <dt>Эксперимент</dt><dd>Из одного момента ставит ракетку с разными смещениями «мяч − центр ракетки» и меряет скорость после удара — на двух разных моментах одинаково.</dd>
+          <dt>Вывод</dt><dd>Шесть ступеней по 4 пикселя; <b>угол вылета не зависит от угла подлёта</b>; за пределами ±12 — промах. Отсюда: «ошибка внутрь безопасна, наружу — смертельна».</dd>
+          <dt>Ещё</dt><dd>Золотые кирпичи неразрушимы — ни один не исчез за 6 минут в раунде 3. Застревание в «лабиринте» из золота — поиск на два отскока вперёд.</dd>
+        </dl>
+        <div class="zones" aria-label="Шесть зон ракетки и угол вылета">{{ZONES}}</div>
+        <div class="tags"><span class="tag">117 670 · раунд 13</span><span class="tag fail">цели ближе к центру — 30 350, откат</span></div>
+      </div></li>
+      <li><span class="time">12:53</span><div class="step">
+        <h3>Капсулы: ветвление «поймать или нет»</h3>
+        <dl class="think">
+          <dt>Эксперимент</dt><dd>Из одного момента: поймать капсулу или пропустить, и сравнить, что изменилось.</dd>
+          <dt>Нашёл</dt><dd>Каждая капсула +1000 очков; зелёная — мяч прилипает; бирюзовая — три мяча; голубая — ракетка 25 → 37; красная — лазер из точек центр ± 8; коричневая — мяч медленнее.</dd>
+        </dl>
+        <div class="tags"><span class="tag">140 340</span><span class="tag">лазер: 150 320 · раунд 14</span></div>
+      </div></li>
+      <li><span class="time">13:14</span><div class="step">
+        <h3>Сменил критерий цели</h3>
+        <dl class="think">
+          <dt>Заметил</dt><dd>«Быстрее до первого кирпича» держит мяч под стеной: в раунде 1 — кирпич на 160 кадров.</dd>
+          <dt>Новый критерий</dt><dd>Симуляция полёта до возвращения к ракетке: «разбито за полёт ÷ время полёта» — загоняет мяч за стену.</dd>
+        </dl>
+        <div class="tags"><span class="tag">172 390 · раунд 15</span><span class="tag fail">пологие углы при медленном мяче — хуже, откат</span></div>
+      </div></li>
+      <li><span class="time">13:30</span><div class="step">
+        <h3>Честная оценка — сам</h3>
+        <dl class="think">
+          <dt>Понял</dt><dd>Партия детерминирована, но хаотична: любое изменение игрока даёт другую партию. Разброс между партиями — ±15–20 тысяч.</dd>
+          <dt>Сделал</dt><dd>«Сиды» (задержка первого действия) и оценку по 4–5 партиям; изменения в пределах разброса не принимает.</dd>
+          <dt>Точность</dt><dd>Свою симуляцию проверил: угадывает первый кирпич в 44% отскоков. Причина — пологий мяч касается ракетки на кадр позже; поправка дала 58% → 70% точных ударов.</dd>
+        </dl>
+      </div></li>
+      <li><span class="time">14:04</span><div class="step">
+        <h3>Несколько мячей</h3>
+        <dl class="think">
+          <dt>Исправил</dt><dd>После мультимяча вёл один трек и терял остальные. Теперь трек у каждого мяча, следит за тем, что раньше долетит.</dd>
+        </dl>
+        <div class="tags"><span class="tag">среднее 176 805 по 4 партиям · 0 потерь</span><span class="tag fail">не ловить зелёные и коричневые — хуже</span></div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <span class="eyebrow">Сравнение находок</span>
+    <h2>Кто что выяснил и сколько это стоило</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Факт об игре</th><th>RL-проект (мы с пользователем)</th><th>Исследователь</th></tr></thead>
+      <tbody>
+        <tr><td>Нужна мышь, а не клавиатура</td><td>Перебор 25 клавиш в первые часы проекта</td><td>Прочитал меню и выбрал мышь</td></tr>
+        <tr><td>Скорость ракетки не ограничена</td><td>Не заметили: RL-агенту дали смещение не больше ±14</td><td>Эксперимент с <code>dx=400</code> в первые 10 минут</td></tr>
+        <tr><td>Угол отскока зависит от точки удара</td><td>Подсказка пользователя через 17 млн шагов, затем замер</td><td>Сам, замером из сохранения, через 45 минут</td></tr>
+        <tr><td>Угол не зависит от угла подлёта</td><td>Не заметили</td><td>Тот же эксперимент на двух моментах</td></tr>
+        <tr><td>Капсулы и их эффекты</td><td>Знали только «B» (выход) и что капсула даёт 1000 очков</td><td>Шесть эффектов из семи, ветвлением из сохранения</td></tr>
+        <tr><td>Нужна оценка по нескольким партиям</td><td>После ложной «просадки» на 10 играх</td><td>Сам, заметив хаотичность партий</td></tr>
+        <tr><td>Узкое место — последние кирпичи</td><td>~10 млн шагов, три попытки поправить награду</td><td>Замер «кирпич на 160 кадров» и новый критерий цели</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Что это значит</span>
+    <h2>Система 2 пишет, система 1 играет</h2>
+    <div class="cols2">
+      <div>
+        <h3>Почему так быстро</h3>
+        <ul>
+          <li>Он не учит «видеть мяч» миллионами проб: понятия «мяч», «траектория», «отскок» у него уже есть.</li>
+          <li>Сохранения делают каждый вопрос экспериментом: один момент — много вариантов действия.</li>
+          <li>Итог — обычная программа на Python: она играет за доли миллисекунды на кадр, без нейросети.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Что честно оговорить</h3>
+        <ul>
+          <li>Большая модель знает о мире и, вероятно, об арканоидах вообще: это готовые знания, а не выведенные из пикселей.</li>
+          <li>Его датчики — тоже ручные правила (шаблоны цифр и мяча), просто придуманные им по наблюдениям.</li>
+          <li>Хвост раунда по-прежнему занимает 25–30% времени; эффект серой и пурпурной капсул не выяснен.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
