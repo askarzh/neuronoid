@@ -302,7 +302,8 @@ class ArkanoidEnv(gym.Env):
         ):
             return
         progress = max(0, k.score - self._round_entry_score)
-        self._pending.append((self._steps, self._emu.save_state(), StartMeta(k.round, progress, k.score, k.lives)))
+        meta = StartMeta(k.round, progress, k.score, k.lives, bricks_left=self._bricks.remaining)
+        self._pending.append((self._steps, self._emu.save_state(), meta))
 
     def _confirm_snapshots(self, bad: bool) -> None:
         if self._pool is None:

@@ -26,7 +26,7 @@ def make_env_fn(
         env = ArkanoidEnv(life_loss_terminal=life_loss_terminal, live=rank == live_rank,
                           start_pool=start_pool, curriculum_prob=curriculum_prob,
                           snapshot_confirm_steps=snapshot_confirm_steps)
-        return Monitor(env, info_keywords=("known_score", "known_round", "gained_score", "curriculum_start"))
+        return Monitor(env, info_keywords=("known_score", "known_round", "gained_score", "curriculum_start", "bricks_left"))
 
     return make
 

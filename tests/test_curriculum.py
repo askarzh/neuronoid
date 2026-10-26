@@ -77,3 +77,38 @@ def test_offer_survives_write_error(tmp_path, monkeypatch):
 
     monkeypatch.setattr(Path, "write_bytes", locked)
     assert pool.offer(b"x", StartMeta(1, 100, 100, 2)) is False
+
+
+def test_front_round_gets_its_share(tmp_path):
+    pool = StartPool(tmp_path, front_share=0.5)
+    pool.offer(b"a", StartMeta(1, 100, 100, 2, bricks_left=20))
+    for r in (2, 3, 4):
+        pool.offer(b"x", StartMeta(r, 100, 9000, 2, bricks_left=40))
+    rng = np.random.default_rng(0)
+    rounds = [pool.sample(rng)[1].round for _ in range(400)]
+    assert 160 < rounds.count(1) < 240
+
+
+def test_fewer_bricks_ranked_higher(tmp_path):
+    pool = StartPool(tmp_path, per_round=10)
+    for left in range(10, 0, -1):
+        pool.offer(b"x", StartMeta(1, 1000 - left, 1000, 2, bricks_left=left))
+    rng = np.random.default_rng(0)
+    assert max(pool.sample(rng)[1].bricks_left for _ in range(100)) <= 5
+
+
+def test_eviction_keeps_fewest_bricks(tmp_path):
+    pool = StartPool(tmp_path, per_round=3)
+    for left in (30, 20, 10):
+        pool.offer(b"x", StartMeta(1, 100, 100, 2, bricks_left=left))
+    assert not pool.offer(b"x", StartMeta(1, 9999, 100, 2, bricks_left=40))  # больше кирпичей — хуже
+    assert pool.offer(b"x", StartMeta(1, 1, 100, 2, bricks_left=5))
+
+
+def test_old_meta_without_bricks_left_still_loads(tmp_path):
+    pool = StartPool(tmp_path)
+    (tmp_path / "1").mkdir()
+    (tmp_path / "1" / "5-old.state").write_bytes(b"s")
+    (tmp_path / "1" / "5-old.json").write_text('{"round": 1, "progress": 5, "score": 5, "lives": 2}')
+    state, meta, _ = pool.sample(np.random.default_rng(0))
+    assert state == b"s" and meta.bricks_left is None

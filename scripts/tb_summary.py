@@ -10,7 +10,7 @@ from tensorboard.backend.event_processing.event_accumulator import EventAccumula
 
 TAGS = (
     "neuronoid/points_mean", "neuronoid/points_mean_fresh", "neuronoid/score_max", "neuronoid/score_max_fresh",
-    "neuronoid/round_max_fresh", "neuronoid/curriculum_share", "neuronoid/pool_round_max", "neuronoid/pool_size",
+    "neuronoid/round_max_fresh", "neuronoid/bricks_left_min_fresh", "neuronoid/curriculum_share", "neuronoid/pool_round_max", "neuronoid/pool_size",
     "rollout/ep_rew_mean", "rollout/ep_len_mean", "time/fps",
 )
 

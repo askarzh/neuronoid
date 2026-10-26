@@ -22,6 +22,7 @@ class GameResult:
     score: int
     round: int
     steps: int
+    bricks_left: int | None = None  # сколько кирпичей осталось в последнем раунде игры
 
 
 @dataclass
@@ -61,5 +62,6 @@ def evaluate(
             obs, _, terminated, truncated, info = env.step(policy(obs))
             steps += 1
             done = terminated or truncated
-        results.append(GameResult(int(info["known_score"] or 0), int(info["known_round"] or 1), steps))
+        results.append(GameResult(int(info["known_score"] or 0), int(info["known_round"] or 1), steps,
+                                  info.get("bricks_left")))
     return Report.from_games(results)

@@ -38,7 +38,7 @@ def main() -> None:
         env.close()
     print(f"Чекпоинт: {ckpt} ({model.num_timesteps} шагов)")
     for i, g in enumerate(report.games, 1):
-        print(f"  игра {i:2d}: счёт {g.score:6d}, раунд {g.round}, шагов {g.steps}")
+        print(f"  игра {i:2d}: счёт {g.score:6d}, раунд {g.round}, шагов {g.steps}, кирпичей осталось {g.bricks_left}")
     for name in MILESTONES:
         print(f"  {name.upper()}: {'зачёт' if getattr(report, name) else 'нет'} (нужно {PASS_COUNT} из {args.games})")
     mode = "det" if args.deterministic else "stoch"

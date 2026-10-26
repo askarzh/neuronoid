@@ -54,7 +54,7 @@ class ScoreCallback(BaseCallback):
         self._points: list[int] = []
         self._rounds: list[int] = []
         self._curriculum: list[bool] = []
-        self._fresh: dict[str, list] = {"points": [], "score": [], "round": []}
+        self._fresh: dict[str, list] = {"points": [], "score": [], "round": [], "bricks": []}
 
     def _on_step(self) -> bool:
         for info in self.locals["infos"]:
@@ -66,7 +66,8 @@ class ScoreCallback(BaseCallback):
                 if ep.get(key) is not None:
                     bucket.append(ep[key])
             if not ep.get("curriculum_start"):  # только игры со свежего раунда 1 — сравнимо с ppo1
-                for key, name in (("gained_score", "points"), ("known_score", "score"), ("known_round", "round")):
+                for key, name in (("gained_score", "points"), ("known_score", "score"), ("known_round", "round"),
+                                  ("bricks_left", "bricks")):
                     if ep.get(key) is not None:
                         self._fresh[name].append(ep[key])
         return True
@@ -88,6 +89,9 @@ class ScoreCallback(BaseCallback):
             self.logger.record("neuronoid/score_max_fresh", float(np.max(self._fresh["score"])))
         if self._fresh["round"]:
             self.logger.record("neuronoid/round_max_fresh", float(np.max(self._fresh["round"])))
+        if self._fresh["bricks"]:
+            # главный признак успеха этапа 4: сколько кирпичей осталось в лучшей свежей игре (цель — 0)
+            self.logger.record("neuronoid/bricks_left_min_fresh", float(np.min(self._fresh["bricks"])))
         for bucket in self._fresh.values():
             bucket.clear()
         if self._pool_dir is not None:

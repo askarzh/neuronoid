@@ -146,6 +146,7 @@ def test_score_callback_logs_fresh_metrics(tmp_path):
     train(tmp_path, total_steps=2048, n_envs=2, live=False, curriculum=True)
     tags = event_tags(tmp_path / "tb")
     assert {"neuronoid/points_mean_fresh", "neuronoid/score_max_fresh"} & tags
+    assert "neuronoid/bricks_left_min_fresh" in tags
 
 
 def test_resume_keeps_curriculum_settings(tmp_path):

@@ -50,3 +50,8 @@ def test_evaluate_stochastic_policy_reproducible_with_seed_hook(eval_env):
     a = evaluate(policy, eval_env, games=2, seed=7, on_game_start=on_game_start).to_json()
     b = evaluate(policy, eval_env, games=2, seed=7, on_game_start=on_game_start).to_json()
     assert a == b
+
+
+def test_report_has_bricks_left(eval_env):
+    rep = evaluate(lambda obs: 0, eval_env, games=1, seed=3)
+    assert rep.games[0].bricks_left is not None and 0 <= rep.games[0].bricks_left <= 66

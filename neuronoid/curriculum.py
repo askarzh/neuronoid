@@ -15,6 +15,8 @@ from pathlib import Path
 import numpy as np
 
 PER_ROUND = 40
+FRONT_ROUND = 1  # раунд, на котором агент застревает: туда — заметная доля стартов
+FRONT_SHARE = 0.5
 
 
 @dataclass(frozen=True)
@@ -23,6 +25,17 @@ class StartMeta:
     progress: int  # очки, набранные в этом раунде: грубая мера «сколько стены разбито»
     score: int
     lives: int
+    bricks_left: int | None = None  # с экрана; у позиций до этапа 4 его нет
+
+
+def rank(meta: StartMeta) -> tuple:
+    """Чем больше, тем ценнее позиция: меньше кирпичей осталось, иначе — больше прогресс.
+
+    Позиции без числа кирпичей (старые) уступают любой позиции с ним.
+    """
+    if meta.bricks_left is not None:
+        return (1, -meta.bricks_left, meta.progress)
+    return (0, meta.progress)
 
 
 def _remove(path: Path) -> None:
@@ -36,9 +49,12 @@ def _remove(path: Path) -> None:
 
 
 class StartPool:
-    def __init__(self, root: Path, per_round: int = PER_ROUND):
+    def __init__(self, root: Path, per_round: int = PER_ROUND, front_round: int = FRONT_ROUND,
+                 front_share: float = FRONT_SHARE):
         self.root = Path(root)
         self.per_round = per_round
+        self.front_round = front_round
+        self.front_share = front_share
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _entries(self, bucket: Path) -> list[tuple[StartMeta, Path]]:
@@ -49,7 +65,7 @@ class StartPool:
             except (OSError, ValueError, TypeError):
                 continue
             out.append((meta, meta_path))
-        return sorted(out, key=lambda e: e[0].progress)
+        return sorted(out, key=lambda e: rank(e[0]))  # худшие в начале
 
     def _buckets(self) -> list[Path]:
         return sorted(p for p in self.root.iterdir() if p.is_dir() and p.name.isdigit())
@@ -59,7 +75,7 @@ class StartPool:
         bucket = self.root / str(meta.round)
         bucket.mkdir(exist_ok=True)
         entries = self._entries(bucket)
-        if len(entries) >= self.per_round and meta.progress <= entries[0][0].progress:
+        if len(entries) >= self.per_round and rank(meta) <= rank(entries[0][0]):
             return False
         stem = bucket / f"{meta.progress}-{uuid.uuid4().hex}"
         try:
@@ -89,12 +105,18 @@ class StartPool:
                 _remove(path)
 
     def sample(self, rng: np.random.Generator) -> tuple[bytes, StartMeta, Path] | None:
-        """Корзина равновероятно среди непустых, позиция — из лучшей половины корзины."""
+        """Корзина фронта — с вероятностью front_share, иначе равновероятно из остальных;
+        позиция — из лучшей половины корзины."""
         while True:
             buckets = [(b, e) for b in self._buckets() if (e := self._entries(b))]
             if not buckets:
                 return None
-            _, entries = buckets[int(rng.integers(len(buckets)))]
+            front = [x for x in buckets if x[0].name == str(self.front_round)]
+            rest = [x for x in buckets if x[0].name != str(self.front_round)]
+            if front and (not rest or rng.random() < self.front_share):
+                _, entries = front[0]
+            else:
+                _, entries = rest[int(rng.integers(len(rest)))]
             top = entries[len(entries) // 2 :]
             meta, path = top[int(rng.integers(len(top)))]
             try:
