@@ -137,3 +137,23 @@ def is_title_screen(frame: np.ndarray) -> bool:
     if frame.shape != GAME_SHAPE:
         return False
     return bool(np.array_equal(_ink(frame, *TITLE_BOX), _TITLE))
+
+
+# Сетка кирпичей: ячейки 16×8, столбцы x = 40 + 16·c (11 штук), ряды y = 9 + 8·r.
+# Ниже BRICK_ROWS кирпичей не бывает — там ходит ракетка.
+BRICK_COLS = 11
+BRICK_ROWS = 18
+BRICK_X0, BRICK_Y0 = 40, 9
+BRICK_W, BRICK_H = 16, 8
+BRICK_FILL = 0.8  # доля не чёрных пикселей внутри ячейки (14×7), чтобы считать её кирпичом
+
+
+def brick_cells(frame: np.ndarray) -> np.ndarray | None:
+    """Сетка «есть кирпич» (BRICK_ROWS × BRICK_COLS) по одному кадру; None для не игрового кадра."""
+    if not is_playing(frame):
+        return None
+    y1 = BRICK_Y0 + BRICK_ROWS * BRICK_H
+    x1 = BRICK_X0 + BRICK_COLS * BRICK_W
+    ink = frame[BRICK_Y0:y1, BRICK_X0:x1].max(axis=2) > 0
+    cells = ink.reshape(BRICK_ROWS, BRICK_H, BRICK_COLS, BRICK_W)[:, : BRICK_H - 1, :, 2:]
+    return cells.mean(axis=(1, 3)) >= BRICK_FILL

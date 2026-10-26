@@ -36,6 +36,7 @@
   "score": null
  },
  "idle_0924_play.png": {
+  "bricks": 66,
   "lives": 2,
   "playing": true,
   "round": 2,
@@ -198,6 +199,7 @@
   "score": 860
  },
  "play_01306_score.png": {
+  "bricks": 57,
   "lives": 2,
   "playing": true,
   "round": 1,
@@ -234,12 +236,14 @@
   "score": 1180
  },
  "play_01699_score.png": {
+  "bricks": 55,
   "lives": 2,
   "playing": true,
   "round": 1,
   "score": 1270
  },
  "play_start.png": {
+  "bricks": 66,
   "lives": 2,
   "playing": true,
   "round": 1,
