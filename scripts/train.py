@@ -26,6 +26,11 @@ def main() -> None:
     ap.add_argument("--curriculum", action="store_true", help="старты с позиций, до которых дошёл агент")
     ap.add_argument("--curriculum-prob", type=float, default=0.5)
     ap.add_argument("--init-from", type=Path, help="новый прогон с весов этого чекпоинта")
+    ap.add_argument("--action-mode", choices=["nudge", "target"], default="nudge",
+                    help="nudge — толчки мыши (этапы 1–4), target — целевая позиция ракетки")
+    ap.add_argument("--obs-mode", choices=["half", "wide"], default="half",
+                    help="half — поле 93×96, wide — 93×192 (без уменьшения по горизонтали)")
+    ap.add_argument("--sticky", type=float, default=0.25, help="вероятность повторить прошлое действие")
     args = ap.parse_args()
     try:
         core_path(), game_path()
@@ -40,7 +45,8 @@ def main() -> None:
         latest = train(run_dir, args.steps, n_envs=args.envs, seed=args.seed, resume=args.resume,
                        device=args.device, checkpoint_every=args.checkpoint_every, live=not args.no_live,
                        torch_threads=args.torch_threads, curriculum=args.curriculum,
-                       curriculum_prob=args.curriculum_prob, init_from=args.init_from)
+                       curriculum_prob=args.curriculum_prob, init_from=args.init_from,
+                       action_mode=args.action_mode, obs_mode=args.obs_mode, sticky_prob=args.sticky)
     except (FileExistsError, FileNotFoundError, ValueError) as e:
         raise SystemExit(str(e))
     print(f"Сохранено: {latest}")

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -153,3 +154,12 @@ def test_resume_keeps_curriculum_settings(tmp_path):
     train(tmp_path, total_steps=256, n_envs=2, live=False, curriculum=True)
     with pytest.raises(ValueError, match="curriculum"):
         train(tmp_path, total_steps=512, n_envs=2, live=False, resume=True)  # забыли --curriculum
+
+
+def test_train_smoke_target_scheme(tmp_path):
+    p = train(tmp_path, total_steps=512, n_envs=2, live=False, action_mode="target", obs_mode="wide",
+              sticky_prob=0.1)
+    m = PPO.load(p)
+    assert m.action_space.n == 41 and m.observation_space.shape == (4, 93, 192)
+    cfg = json.loads((tmp_path / "config.json").read_text())
+    assert cfg["action_mode"] == "target" and cfg["obs_mode"] == "wide" and cfg["sticky_prob"] == 0.1

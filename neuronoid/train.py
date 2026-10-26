@@ -198,6 +198,9 @@ def train(
     curriculum_prob: float = 0.5,
     init_from: Path | None = None,
     snapshot_confirm_steps: int = 60,
+    action_mode: str = "nudge",
+    obs_mode: str = "half",
+    sticky_prob: float = 0.25,
 ) -> Path:
     """Учит до `total_steps` шагов всего (при resume — досчитывает до этой цели).
 
@@ -220,7 +223,8 @@ def train(
     config_path = run_dir / "config.json"
     if resume and config_path.exists():
         old = json.loads(config_path.read_text())
-        for key, value in (("curriculum", curriculum), ("curriculum_prob", curriculum_prob)):
+        for key, value in (("curriculum", curriculum), ("curriculum_prob", curriculum_prob),
+                           ("action_mode", action_mode), ("obs_mode", obs_mode), ("sticky_prob", sticky_prob)):
             if key in old and old[key] != value:
                 raise ValueError(f"--resume с другим {key}: было {old[key]}, сейчас {value} (curriculum-настройки)")
     config_path.write_text(
@@ -228,6 +232,7 @@ def train(
             {"total_steps": total_steps, "n_envs": n_envs, "seed": seed, "resume": resume,
              "device": device, "learning_rate": LEARNING_RATE, "curriculum": curriculum,
              "curriculum_prob": curriculum_prob, "init_from": str(init_from) if init_from else None,
+             "action_mode": action_mode, "obs_mode": obs_mode, "sticky_prob": sticky_prob,
              **PPO_KWARGS},
             indent=1,
         )
@@ -239,7 +244,8 @@ def train(
             raise FileNotFoundError(f"Нет чекпоинта: {start}")
     venv = make_vec_env(n_envs, seed=seed, life_loss_terminal=True, live=live,
                         start_pool=pool_dir, curriculum_prob=curriculum_prob,
-                        snapshot_confirm_steps=snapshot_confirm_steps)
+                        snapshot_confirm_steps=snapshot_confirm_steps,
+                        env_kwargs={"action_mode": action_mode, "obs_mode": obs_mode, "sticky_prob": sticky_prob})
     model = None
     dog = Watchdog()
     try:

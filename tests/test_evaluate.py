@@ -55,3 +55,20 @@ def test_evaluate_stochastic_policy_reproducible_with_seed_hook(eval_env):
 def test_report_has_bricks_left(eval_env):
     rep = evaluate(lambda obs: 0, eval_env, games=1, seed=3)
     assert rep.games[0].bricks_left is not None and 0 <= rep.games[0].bricks_left <= 66
+
+
+def test_env_kwargs_from_config(tmp_path):
+    from neuronoid.evaluate import env_kwargs_from_config
+
+    assert env_kwargs_from_config(tmp_path) == {}  # старый прогон без config.json
+    (tmp_path / "config.json").write_text('{"n_envs": 10}')
+    assert env_kwargs_from_config(tmp_path) == {}
+    (tmp_path / "config.json").write_text('{"action_mode": "target", "obs_mode": "wide", "sticky_prob": 0.1}')
+    assert env_kwargs_from_config(tmp_path) == {"action_mode": "target", "obs_mode": "wide", "sticky_prob": 0.1}
+
+
+def test_classify_round1_exit():
+    from neuronoid.evaluate import classify_round1_exit
+
+    assert classify_round1_exit(1) and classify_round1_exit(0)
+    assert not classify_round1_exit(60) and not classify_round1_exit(None)

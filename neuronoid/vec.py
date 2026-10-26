@@ -16,6 +16,7 @@ def make_env_fn(
     start_pool: Path | None = None,
     curriculum_prob: float = 0.5,
     snapshot_confirm_steps: int = 60,
+    env_kwargs: dict | None = None,
 ) -> Callable[[], gym.Env]:
     """Фабрика для SubprocVecEnv; сид раздаёт make_vec_env через venv.seed()."""
     def make() -> gym.Env:
@@ -25,7 +26,7 @@ def make_env_fn(
         silence_native_stdout()
         env = ArkanoidEnv(life_loss_terminal=life_loss_terminal, live=rank == live_rank,
                           start_pool=start_pool, curriculum_prob=curriculum_prob,
-                          snapshot_confirm_steps=snapshot_confirm_steps)
+                          snapshot_confirm_steps=snapshot_confirm_steps, **(env_kwargs or {}))
         return Monitor(env, info_keywords=("known_score", "known_round", "gained_score", "curriculum_start", "bricks_left"))
 
     return make
@@ -39,11 +40,12 @@ def make_vec_env(
     start_pool: Path | None = None,
     curriculum_prob: float = 0.5,
     snapshot_confirm_steps: int = 60,
+    env_kwargs: dict | None = None,
 ) -> SubprocVecEnv:
     """`live=True` — живое окно показывает среду №0 (и только её); `start_pool` — учебная программа."""
     fns = [
         make_env_fn(i, seed, life_loss_terminal, 0 if live else None, start_pool, curriculum_prob,
-                    snapshot_confirm_steps)
+                    snapshot_confirm_steps, env_kwargs)
         for i in range(n_envs)
     ]
     venv = SubprocVecEnv(fns, start_method="spawn")

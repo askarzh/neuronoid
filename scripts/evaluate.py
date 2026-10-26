@@ -10,7 +10,7 @@ from stable_baselines3 import PPO
 
 from neuronoid.config import ConfigError
 from neuronoid.env import ArkanoidEnv
-from neuronoid.evaluate import GAMES, MILESTONES, PASS_COUNT, evaluate
+from neuronoid.evaluate import GAMES, MILESTONES, PASS_COUNT, env_kwargs_from_config, evaluate
 
 
 def main() -> None:
@@ -26,7 +26,8 @@ def main() -> None:
     if not ckpt.exists():
         raise SystemExit(f"Нет чекпоинта: {ckpt}")
     model = PPO.load(ckpt, device="cpu")
-    env = ArkanoidEnv(life_loss_terminal=False)
+    scheme = env_kwargs_from_config(run_dir)
+    env = ArkanoidEnv(life_loss_terminal=False, **scheme)
     try:
         report = evaluate(
             lambda obs: int(model.predict(obs, deterministic=args.deterministic)[0]),
@@ -38,7 +39,8 @@ def main() -> None:
         env.close()
     print(f"Чекпоинт: {ckpt} ({model.num_timesteps} шагов)")
     for i, g in enumerate(report.games, 1):
-        print(f"  игра {i:2d}: счёт {g.score:6d}, раунд {g.round}, шагов {g.steps}, кирпичей осталось {g.bricks_left}")
+        how = " (раунд 1 очищен)" if g.cleared_round1 else ""
+        print(f"  игра {i:2d}: счёт {g.score:6d}, раунд {g.round}, шагов {g.steps}, кирпичей осталось {g.bricks_left}{how}")
     for name in MILESTONES:
         print(f"  {name.upper()}: {'зачёт' if getattr(report, name) else 'нет'} (нужно {PASS_COUNT} из {args.games})")
     mode = "det" if args.deterministic else "stoch"
