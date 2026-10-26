@@ -248,5 +248,11 @@
   "playing": true,
   "round": 1,
   "score": 0
+ },
+ "round18_play.png": {
+  "lives": 5,
+  "playing": true,
+  "round": 18,
+  "score": 172980
  }
 }
