@@ -316,3 +316,36 @@ def test_no_snapshot_without_known_bricks(emu, tmp_path):
         env.step(1 if i < 3 else 0)
     metas = [json.loads(p.read_text()) for p in tmp_path.rglob("*.json")]
     assert metas and all(m["bricks_left"] not in (None, 0) for m in metas)
+
+
+from neuronoid.env import N_TARGETS, controller_dx, paddle_center, target_x  # noqa: E402
+
+
+def test_paddle_center_on_frames():
+    assert paddle_center(_frame("play_start.png")) == pytest.approx(106, abs=1)
+    assert paddle_center(_frame("play_01699_score.png")) == pytest.approx(194, abs=1)
+    assert paddle_center(np.zeros((200, 320, 3), np.uint8)) is None
+
+
+def test_controller_idle_without_paddle():
+    assert controller_dx(100.0, None) == 0
+
+
+def test_controller_saturates():
+    assert controller_dx(200.0, 60.0) == 14 and controller_dx(60.0, 200.0) == -14
+    assert controller_dx(105.0, 100.0) == 5
+
+
+def test_target_action_moves_paddle_to_target(emu):
+    env = ArkanoidEnv(emulator=emu, start_state=emu.round1_state, action_mode="target", obs_mode="wide",
+                      sticky_prob=0.0, max_noop=0, use_brick_reward=False)
+    obs, _ = env.reset(seed=0)
+    assert obs.shape == (4, 93, 192) and env.observation_space.contains(obs)
+    assert env.action_space.n == N_TARGETS + 1
+    for _ in range(15):
+        env.step(5)
+    left = paddle_center(env._frame)
+    for _ in range(15):
+        env.step(34)
+    right = paddle_center(env._frame)
+    assert abs(left - target_x(5)) <= 4 and abs(right - target_x(34)) <= 4

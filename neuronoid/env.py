@@ -17,7 +17,10 @@ from neuronoid.config import core_path, game_path
 from neuronoid.emulator import LibretroEmulator, Mouse
 from neuronoid.screen import ScreenState, is_title_screen, read_state
 
-__all__ = ["ACTIONS", "ArkanoidEnv", "JumpConfirm", "ScreenState", "brick_reward", "reward_between", "update_known"]
+__all__ = [
+    "ACTIONS", "N_TARGETS", "ArkanoidEnv", "JumpConfirm", "ScreenState", "brick_reward", "controller_dx",
+    "paddle_center", "reward_between", "target_x", "update_known",
+]
 
 # Ничего, огонь (запуск мяча / лазер), медленно и быстро влево/вправо.
 # Скорость ракетки игра ограничивает сама: около 1 и 2,5 пикселя за кадр.
@@ -121,11 +124,54 @@ class JumpConfirm:
         return None
 
 
-def preprocess(frame: np.ndarray) -> np.ndarray:
-    """Поле -> оттенки серого -> среднее по блокам 2×2: uint8 (93, 96)."""
+# Прицельная схема (этап 5): действие — куда поставить центр ракетки, как человек
+# ведёт мышь к нужной точке. Угол отскока зависит от точки удара по ракетке
+# (±12 пикселей поворачивают мяч от ~20° до ~160°), а толчки мыши ±4/±12 с
+# задержкой не позволяли точно подставить ракетку.
+N_TARGETS = 40
+PADDLE_MIN, PADDLE_MAX = 52.0, 204.0  # центр ракетки (ширина 25) у левой и правой стены
+FIRE_ACTION = N_TARGETS
+WIDE_OBS_SHAPE = (93, 192)
+PADDLE_ROW = 178
+
+
+def target_x(i: int) -> float:
+    return PADDLE_MIN + i * (PADDLE_MAX - PADDLE_MIN) / (N_TARGETS - 1)
+
+
+def paddle_center(frame: np.ndarray) -> float | None:
+    """Центр ракетки по пикселям: самый длинный непрерывный отрезок в строке ракетки."""
+    if frame.shape != (200, 320, 3):
+        return None
+    ink = frame[PADDLE_ROW, 40:216].max(axis=1) > 100
+    best, start, best_span = 0, None, None
+    for i, v in enumerate(np.append(ink, False)):
+        if v and start is None:
+            start = i
+        elif not v and start is not None:
+            if i - start > best:
+                best, best_span = i - start, (start, i - 1)
+            start = None
+    if best < 12:  # мяч или осколок, а не ракетка
+        return None
+    return 40 + (best_span[0] + best_span[1]) / 2
+
+
+def controller_dx(target: float, center: float | None) -> int:
+    if center is None:
+        return 0
+    # коэффициент 1: мышь отвечает с задержкой 2–3 кадра, при 2 ракетка раскачивалась на ±8 пикселей
+    return int(np.clip(round(target - center), -14, 14))
+
+
+def preprocess(frame: np.ndarray, wide: bool = False) -> np.ndarray:
+    """Поле -> оттенки серого -> уменьшение: 2×2 (93, 96) или только по строкам (93, 192)."""
     field = frame[FIELD].astype(np.float32)
     gray = field @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
-    small = gray.reshape(OBS_SHAPE[0], 2, OBS_SHAPE[1], 2).mean(axis=(1, 3))
+    if wide:
+        small = gray.reshape(WIDE_OBS_SHAPE[0], 2, WIDE_OBS_SHAPE[1]).mean(axis=1)
+    else:
+        small = gray.reshape(OBS_SHAPE[0], 2, OBS_SHAPE[1], 2).mean(axis=(1, 3))
     return small.astype(np.uint8)
 
 
@@ -148,6 +194,8 @@ class ArkanoidEnv(gym.Env):
         snapshot_every: int = 100,
         snapshot_confirm_steps: int = 60,
         use_brick_reward: bool = True,
+        action_mode: str = "nudge",
+        obs_mode: str = "half",
     ):
         """`emulator`/`start_state` — для тестов: чужой эмулятор, уже знающий старт.
 
@@ -165,9 +213,14 @@ class ArkanoidEnv(gym.Env):
         self._emu = emulator
         self._owns_emu = emulator is None
         self._start = start_state
-        self.action_space = spaces.Discrete(len(ACTIONS))
-        self.observation_space = spaces.Box(0, 255, (frame_stack, *OBS_SHAPE), np.uint8)
-        self._stack = np.zeros((frame_stack, *OBS_SHAPE), np.uint8)
+        if action_mode not in ("nudge", "target") or obs_mode not in ("half", "wide"):
+            raise ValueError(f"неизвестная схема: action_mode={action_mode}, obs_mode={obs_mode}")
+        self.action_mode = action_mode
+        self.wide = obs_mode == "wide"
+        shape = WIDE_OBS_SHAPE if self.wide else OBS_SHAPE
+        self.action_space = spaces.Discrete(N_TARGETS + 1 if action_mode == "target" else len(ACTIONS))
+        self.observation_space = spaces.Box(0, 255, (frame_stack, *shape), np.uint8)
+        self._stack = np.zeros((frame_stack, *shape), np.uint8)
         self._known = ScreenState(False, None, None, None)
         self._prev_action = 0
         self._steps = 0
@@ -198,20 +251,28 @@ class ArkanoidEnv(gym.Env):
             self._start = self._emu.save_state()
         return self._emu
 
-    def _advance(self, mouse: Mouse) -> np.ndarray:
-        """frame_skip кадров; наблюдение — максимум двух последних (против мерцания)."""
+    def _advance(self, action) -> np.ndarray:
+        """frame_skip кадров; наблюдение — максимум двух последних (против мерцания).
+
+        `action` — Mouse (толчковая схема) или номер цели (прицельная: мышь
+        довозится к цели на каждом кадре по положению ракетки на экране).
+        """
         emu = self._emu
-        if self.frame_skip > 1:
-            emu.step(mouse=mouse, frames=self.frame_skip - 1)
-            before = emu.frame()
+        before = None
+        for i in range(self.frame_skip):
+            if isinstance(action, Mouse):
+                mouse = action
+            elif action == FIRE_ACTION:
+                mouse = Mouse(left=True)
+            else:
+                mouse = Mouse(dx=controller_dx(target_x(action), paddle_center(emu.frame())))
+            if i == self.frame_skip - 1 and self.frame_skip > 1:
+                before = emu.frame()
             emu.step(mouse=mouse)
-        else:
-            emu.step(mouse=mouse)
-            before = None
         self._frame = emu.frame()
-        obs = preprocess(self._frame)
+        obs = preprocess(self._frame, self.wide)
         if before is not None and before.shape == self._frame.shape:
-            obs = np.maximum(obs, preprocess(before))
+            obs = np.maximum(obs, preprocess(before, self.wide))
         return obs
 
     def _info(self, state: ScreenState) -> dict:
@@ -256,7 +317,7 @@ class ArkanoidEnv(gym.Env):
                 state = read_state(self._frame)
                 self._round_entry_score = state.score
             self._known = state
-        self._stack[:] = preprocess(self._frame)
+        self._stack[:] = preprocess(self._frame, self.wide)
         self._pending.clear()
         self._bricks.reset()  # новая игра, позиция из пула или следующая жизнь: стену видим заново
         self._start_score = self._known.score
@@ -322,7 +383,7 @@ class ArkanoidEnv(gym.Env):
         if self.np_random.random() < self.sticky_prob:
             action = self._prev_action
         self._prev_action = action
-        obs = self._advance(ACTIONS[action])
+        obs = self._advance(ACTIONS[action] if self.action_mode == "nudge" else action)
         self._stack = np.roll(self._stack, -1, axis=0)
         self._stack[-1] = obs
         self._steps += 1
