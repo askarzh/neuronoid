@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from neuronoid.screen import ScreenState, is_playing, is_title_screen, read_lives, read_round, read_score, read_state
+from neuronoid.screen import ScreenState, is_ending_screen, is_playing, is_title_screen, read_lives, read_round, read_score, read_state
 
 FRAMES = Path(__file__).parent / "data" / "frames"
 LABELS = json.loads((FRAMES / "labels.json").read_text())
@@ -62,3 +62,9 @@ TITLE_FRAMES = {n for n in LABELS if n.startswith("idle_") and n.endswith("_not.
 @pytest.mark.parametrize("name", sorted(LABELS))
 def test_is_title_screen(name):
     assert is_title_screen(load(name)) == (name in TITLE_FRAMES)
+
+
+@pytest.mark.parametrize("name", sorted(LABELS))
+def test_is_ending_screen(name):
+    # Корабль после победы над боссом; во вступлении корабль похож, но не совпадает пиксель в пиксель.
+    assert is_ending_screen(load(name)) == (name == "ending_story.png")

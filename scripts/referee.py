@@ -30,8 +30,8 @@ def main() -> None:
     result = judge(load_player(args.player), args.games, args.seed, int(70 * 60 * args.max_minutes))
     for i, g in enumerate(result["games"], 1):
         print(f"  игра {i:2d}: счёт {g['score']:6d}, раунд {g['round']}, кадров {g['frames']}, "
-              f"{'Game Over' if g['game_over'] else ('лимит времени' if g['started'] else 'игра не началась')}")
-    print(f"средний счёт {result['mean_score']:.0f}, максимальный раунд {result['max_round']}")
+              f"{'ПОБЕДА' if g['won'] else 'Game Over' if g['game_over'] else ('лимит времени' if g['started'] else 'игра не началась')}")
+    print(f"средний счёт {result['mean_score']:.0f}, максимальный раунд {result['max_round']}, побед {result['wins']} из {len(result['games'])}")
     print(json.dumps(result))
 
 

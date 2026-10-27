@@ -1,4 +1,10 @@
 {
+ "ending_story.png": {
+  "lives": null,
+  "playing": false,
+  "round": null,
+  "score": null
+ },
  "idle_0000_play.png": {
   "lives": 2,
   "playing": true,

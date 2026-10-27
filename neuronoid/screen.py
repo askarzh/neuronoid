@@ -26,6 +26,9 @@ _GLYPHS: dict[str, np.ndarray] = {k: v for k, v in _MASKS.items() if k.isdigit()
 # Титульный экран (после Game Over): слово PLAYER в заголовке таблицы рекордов.
 TITLE_BOX = (81, 87, 57, 105)
 _TITLE = _MASKS["TITLE"]
+# Финал после победы над боссом раунда 33: корабль на звёздном фоне под текстом истории.
+SHIP_BOX = (100, 170, 100, 220)
+_SHIP = _MASKS["SHIP"]
 
 
 def _ink(frame: np.ndarray, y0: int, y1: int, x0: int, x1: int, threshold: int = INK) -> np.ndarray:
@@ -137,6 +140,13 @@ def is_title_screen(frame: np.ndarray) -> bool:
     if frame.shape != GAME_SHAPE:
         return False
     return bool(np.array_equal(_ink(frame, *TITLE_BOX), _TITLE))
+
+
+def is_ending_screen(frame: np.ndarray) -> bool:
+    """Финальная история после победы. Похожий корабль есть во вступлении, поэтому верить — только после начала партии."""
+    if frame.shape != GAME_SHAPE:
+        return False
+    return bool(np.array_equal(_ink(frame, *SHIP_BOX), _SHIP))
 
 
 # Сетка кирпичей: ячейки 16×8, столбцы x = 40 + 16·c (11 штук), ряды y = 9 + 8·r.

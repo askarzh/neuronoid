@@ -28,3 +28,4 @@ def test_judge_in_subprocess(tmp_path):
     out = json.loads(r.stdout.strip().splitlines()[-1])
     game = out["games"][0]
     assert game["started"] and game["game_over"] and game["round"] == 1 and game["score"] >= 0
+    assert game["won"] is False
