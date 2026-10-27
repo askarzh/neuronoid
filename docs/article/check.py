@@ -28,12 +28,25 @@ def word_count(text: str) -> int:
     return sum(1 for w in _clean(text).split() if re.search(r"\w", w))
 
 
+# Малое число всё же проверяем, если оно — сумма, часть диапазона, счёт «N из M» или стоит перед множителем.
+_SMALL_BEFORE = re.compile(r"(\$|(?:\bиз|\bof)\s)$", re.I)
+_SMALL_AFTER = re.compile(r"^(?:[–-]\d+)?\s*(?:тыс|млн|thousand|million|%)|^[–-]\d|^\s+(?:из|of|out of)\s+\d", re.I)
+
+
+def _numbers(text: str):
+    """(число в нормальной форме, нужно ли проверять малое число) для каждого числа текста."""
+    text = _clean(text)
+    for m in _NUMBER.finditer(text):
+        n = re.sub(r"[   ,]", "", m.group(1))
+        n = f"{n}.{m.group(2)}" if m.group(2) else n
+        weighty = bool(_SMALL_BEFORE.search(text[max(0, m.start() - 4):m.start()])
+                       or _SMALL_AFTER.search(text[m.end():m.end() + 16])
+                       or re.search(r"\d[–-]$", text[:m.start()]))
+        yield n, weighty
+
+
 def numbers_in(text: str) -> set[str]:
-    found = set()
-    for whole, frac in _NUMBER.findall(_clean(text)):
-        n = re.sub(r"[   ,]", "", whole)
-        found.add(f"{n}.{frac}" if frac else n)
-    return found
+    return {n for n, _ in _numbers(text)}
 
 
 def load_facts(path: Path) -> set[str]:
@@ -46,7 +59,8 @@ def load_facts(path: Path) -> set[str]:
 
 
 def unverified(text: str, facts: set[str]) -> set[str]:
-    return {n for n in numbers_in(text) if n not in facts and not (n.isdigit() and int(n) <= SMALL)}
+    return {n for n, weighty in _numbers(text)
+            if n not in facts and (weighty or not (n.isdigit() and int(n) <= SMALL))}
 
 
 def main() -> int:

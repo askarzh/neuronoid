@@ -32,3 +32,20 @@ def test_load_facts(tmp_path):
     p = tmp_path / "facts.md"
     p.write_text("| Число | Что | Источник |\n|---|---|---|\n| 343 977 | среднее | log |\n", encoding="utf-8")
     assert load_facts(p) == {"343977"}
+
+
+def test_small_numbers_with_multiplier_checked():
+    assert unverified("плато около 7–8 тыс. очков", set()) == {"7", "8"}
+    assert unverified("about $5 and 2 million steps", set()) == {"5", "2"}
+
+
+def test_small_numbers_in_scores_checked():
+    assert unverified("в 10 партиях из 10", set()) == {"10"}
+    assert unverified("won 9 of 10, 10 out of 10", {"10"}) == {"9"}
+
+
+def test_article_texts_match_facts():
+    root = Path(__file__).resolve().parents[1] / "docs" / "article"
+    facts = load_facts(root / "facts.md")
+    for name in ("habr.md", "linkedin.md", "linkedin-post.md"):
+        assert unverified((root / name).read_text(encoding="utf-8"), facts) == set(), name
