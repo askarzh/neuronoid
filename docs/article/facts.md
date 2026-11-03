@@ -135,3 +135,30 @@
 - Спека: «±14» — ограничение хода ракетки RL-агента за решение. В TL «Проверка механизма отскока» иначе:
   «6 действий сдвигают ракетку на 4–10 пикселей за решение». Обе записи из TL; в статье — «шаг ракетки ограничен»
   без конкретного числа, либо ±14 со ссылкой на TL «Прогон ppo5».
+
+## Выступление Карпатого (рамка статьи)
+
+Источник: Andrej Karpathy, «From Vibe Coding to Agentic Engineering», беседа со Stephanie Zhan, Sequoia AI Ascent
+2026 (конференция 20 апреля 2026, sequoiacap.com/article/ai-ascent-2026). Видео: youtu.be/96jN2OCOfLs,
+русский дубляж — youtu.be/yZ3d0hTQfAg. Расшифровка: singjupost.com (тайм-коды ниже — по ней). Переводы цитат мои.
+
+| Число | Что означает | Источник |
+|---|---|---|
+| 2026 | год выступления (апрель 2026) | sequoiacap.com, AI Ascent 2026 |
+| Software 1.0 | «I'm writing code» | 00:02:50 |
+| Software 2.0 | «programming by creating datasets and training neural networks… arranging datasets and maybe some objectives» | 00:02:50 |
+| Software 3.0 | «your programming now turns to prompting. And what's in the context window is your lever over the interpreter that is the LLM» | 00:02:50 |
+
+Цитаты без чисел, которые есть в тексте:
+
+- «легко автоматизируют то, что можно проверить» — «traditional computers can easily automate what you can specify
+  in code. And kind of this latest round of LLMs can easily automate what you can verify» (00:10:03).
+- «немного ошибаются, немного случайны» — «They're a bit fallible, a little bit stochastic, but they are extremely
+  powerful» (00:15:57).
+- «человек в контуре» — «you need to actually be in the loop a little bit and you need to treat them as tools»
+  (00:10:03).
+- «поднимает пол» / «сохраняет планку качества» / «отвечаете за свою программу» — «vibe coding is about raising the
+  floor… agentic engineering is about preserving the quality bar… you're still responsible for your software just as
+  before» (00:15:57).
+- «Думать можно поручить, понимать — нельзя» — Карпатый цитирует чужой твит: «you can outsource your thinking, but
+  you can't outsource your understanding» (00:28:05).

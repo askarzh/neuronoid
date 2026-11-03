@@ -1,112 +1,117 @@
-# Six months ago I couldn't build an AI that plays Arkanoid. It worked once the LLM stopped being "the assistant"
+# I finally understood Andrej Karpathy, thanks to Arkanoid!
 
 ![The final screen of DOS Arkanoid: the VAUS ship escapes after the DOH boss is destroyed](img/final.png)
 
-This is the last screen of Arkanoid for DOS, released in 1988. The ship escapes after the final boss, DOH, is
-destroyed in round 33. No API, no memory access — only a 320×200 picture, a keyboard and a mouse.
+This is the last screen of Arkanoid for DOS, released in 1988. The ship escapes because the final boss, DOH, has
+been destroyed in round 33. No API, no access to the game's memory: only a 320×200 picture, a keyboard and a mouse.
 
-A program written by AI reached this screen in 10 games out of 10. The AI figured out how to play by looking at
-the screen — inside a sandbox we built, on three tasks I gave it — and an independent referee, also ours,
-checked the result.
+A program written by AI reached this screen in 10 games out of 10. The finished player ran without any LLM. The AI studied the game from the screen and wrote an ordinary program that played. Claude and I
+built the tools for interacting with the game and a separate program to check the results, and I set the tasks.
 
-Six months ago I tried the same thing and failed. What changed was not only the models, but my idea of what an
-AI system is.
+Six months ago, in April 2026, I watched [Andrej Karpathy's talk](https://youtu.be/96jN2OCOfLs) at Sequoia AI
+Ascent. In Software 1.0 you write code. In Software 2.0 you are "programming by creating datasets and training
+neural networks". In Software 3.0 "your programming now turns to prompting", and the context window is "your lever
+over the interpreter that is the LLM". I watched, nodded and, as I now realise, understood nothing.
 
-## What I used to think AI was
+I am not a professional programmer. Vibe coding, agents, a new paradigm: I knew the words, but I didn't really
+know what they meant in practice. Recently I watched the talk again and was surprised that I understood almost
+every word. Now I had my own experience to connect them to.
 
-To me, "build an AI that plays a game" meant reinforcement learning (RL): a neural network looks at the screen,
-presses buttons, gets points as a reward and learns over millions of attempts.
+## Before: Software 2.0
 
-In this project I tried again. The agent trained for about a day on a laptop CPU — 17
-million steps. Its average score plateaued at 7–8 thousand points. It never honestly cleared the first round; it
-only reached round two through a bonus capsule that opens an exit in the wall. Reward tweaks helped a little; the
-ceiling held.
+I went the classic way, reinforcement learning: a neural network looks at the screen, gets a reward for points and learns over millions of attempts.
 
-All the RL code was written by an LLM — Claude, acting as my programming assistant. It also found bugs and
-suggested fixes, but always inside the method I had chosen. In my head, "the AI" was the trained network and the
-LLM was a tool for building it.
+The agent trained for about a day on a laptop CPU: 17 million steps. Its average score stalled at 7–8 thousand
+points, and it never cleared all the bricks in round one. I kept tweaking the reward. The tweaks helped a little,
+but I couldn't get past that plateau.
 
-## The turning point
+That attempt was Software 2.0: the program was the network's learned weights. Claude, a large language model
+(LLM), wrote all the training code as my programming assistant, inside the method I had chosen. To me, AI was the
+trained network and the LLM was a tool for building it.
 
-Then I changed the setup. A separate session of the same LLM got a "body" and a goal instead of a coding task.
-The body: an emulator that boots the game from scratch, screen frames as pixel arrays, keys, mouse, and save
-states to rewind to any moment. The goal: "figure out how to play and write a player program." It was told the
-game's name and how it would be judged — nothing about how to play.
+## After: Software 3.0
 
-The model was the same in both roles: Claude Opus 5.5. Only the role changed.
+Then I started a new session with the same model and gave it a goal and tools to explore the game instead of a
+coding task. Through an emulator, it could look at the screen, press keys, move
+the mouse and jump back to saved moments. The goal: "figure out how to play and write a player program". Nothing
+about how to play.
+
+The model was the same, Claude Opus 5.5. Its role changed, and so did the conditions: precise mouse control, the
+full frame, save states for experiments. So this is not a fair contest between methods: we never finished
+training a reworked RL setup.
+
+Instead of specifying a training method, I gave it a one-page
+assignment. The LLM was the interpreter Karpathy had described. It read my instructions and wrote a player in
+ordinary code, which could run without an LLM. Software 3.0 wrote Software 1.0.
 
 ![Left: the RL agent by millions of training steps. Right: the LLM researcher by hours of work](img/progress_en.png)
 
-In under half an hour, the second version of its player scored 101,820 points and reached round 9 without
-losing a life, on the researcher's own test runs. In about 2.5 hours it averaged 174 thousand points and rounds
-14–19 under our referee in 20 minutes of play. This is not a contest between methods: RL trained for about a day
-on a CPU, and we never finished training its improved version.
+In under half an hour, in its own tests, its second version scored 101,820 points and reached round 9 without
+losing a life. After about 2.5 hours it had built a player that averaged 174 thousand points in our referee's
+20-minute tests, reaching rounds 14–19.
 
-## Under the hood: a research loop
+## The moment that surprised me
 
-![The researcher's loop: observe, hypothesise, experiment, code, check, analyse losses](img/cycle_en.png)
+To work out where to aim, it tested what determines the ball's bounce. It loaded the same falling-ball moment from
+a save state, placed the paddle at different offsets and measured how the ball flew off. It found six zones within
+±12 pixels, from a shallow bounce left to a shallow bounce right.
 
-One early experiment showed that the mouse moves the paddle with
-no speed limit: one sharp move crosses the whole field in a single frame. So the paddle can be anywhere instantly
-— the question is where to aim.
+I did not expect an LLM to realise this was physics and to design its own experiment measuring paddle offset, ball
+speed and bounce angle. We can't tell what it already knew about Arkanoid from its training. But it designed and
+ran the experiment itself. It wasn't just writing code based on my suggestions anymore. It was a researcher.
 
-To aim, it tested what decides the bounce. It loaded the same falling-ball moment from a save state, placed the
-paddle at different offsets and measured the ball's velocity afterwards. Result: six discrete zones within ±12
-pixels, from a shallow bounce left to a shallow bounce right, regardless of the incoming angle. The player then
-simulated each zone on every approach and picked the one that broke a brick fastest.
+![Six paddle zones and where the ball goes from each, measured by the researcher](img/bounce_en.png)
 
-When the player lost balls on shallow shots, it recorded the frames before each loss and concluded: an aiming
-error towards the centre only changes the angle, one towards the edge is fatal. It dropped the edge zones and
-losses nearly vanished. The log records failed ideas too.
-
-In the RL track, the same bounce mechanism appeared only after I hinted at it. Here nobody hinted. We can't
-control what the model knew about Arkanoid from training; its contribution was to run the experiment and measure.
-
-In round 33 the boss shoots, nothing earlier does, and the player lost all lives in
-about 36 seconds. I set a new task — "reach round 33 and beat DOH" — without saying how. The researcher found the
-projectiles in the frames and taught the player to dodge. Later the referee caught the ball looping
-forever in round 25; the researcher replayed that round 24 times from one moment, found 4 trapped cases and added
-an escape move. Every fix was a separate task that I started. This is not a "self-healing" system; it is a system
-you can improve quickly by stating the problem in words.
+Then came further tasks and fixes. In round 33 the boss shoots back, and at first the player lost all its lives in about 36
+seconds. I set a new task, "beat DOH", without saying how, and the researcher taught the player to dodge. Later
+the ball kept looping in round 25 without making progress. The first fix didn't hold. The second time the
+researcher replayed that round 24 times from two saved moments, found 4 trapped cases and added an escape move.
 
 ## How it was verified
 
-The referee boots the game, waits a random number of frames, hands control to the player and reads score, round
-and the ending from the screen. Final run: 10 games, a
-90-minute limit, 10 wins over DOH, mean score 343,977. The previous version won 9 of 10 (7 of 8 distinct games — two
-pairs repeated frame for frame); that run caught the round-25 loop a second time.
+Karpathy's other point clicked here: LLMs "can easily automate what you can verify". A separate referee boots the
+game, waits a random number of frames, hands control to the player and reads the result from the screen. Final
+run: ten games with different start delays, 10 wins over DOH, mean score 343,977.
 
-At API prices, the researcher's work would have cost about $31; the whole project, including RL, the emulator and
-the referee, about $136. I used a subscription, so this is an estimate, not a bill.
+At API rates, model usage would have been about $31 for the researcher and about $136 for the whole
+project. It's an estimate of model usage, not a bill.
 
-## What this means if you run technology
+## From Arkanoid to business
 
-**Re-test old "no"s.** Six months ago I concluded this needed long RL training. The same LLM that wrote my RL code
-did it in a few hours of work once it had a different role.
+Here are the practical rules I took from this project.
 
-**Software without an API is a candidate — with conditions.** Many companies run legacy systems that only have a
-screen. We showed this on a game, so for business it is a hypothesis. The game also gave us things a production
-system rarely does: rewindable save states, identical results for identical actions, and an emulator running far
-faster than real time. Build that sandbox first.
+**Give the agent a sandbox where it can fail.** At work I would start with a copy, say a CRM copy with no access to real payments.
 
-**Questions to ask a vendor:**
+**Decide how to check before you automate.** "10 out of 10" was checked by a separate program, not reported by the
+researcher itself. In business that check could be a test that reconciles the final balance. If you can't say how
+you'll know the agent succeeded, it's too early.
 
-- Who verifies the result, independently of whoever built it?
-- What runs in production — a model, or code you can read and test?
+**Give the LLM a defined role in the system.** In my first attempt the LLM was a helper on the side; in the second it was part of the system. What I would try now: instead of just giving staff a chatbot, build the LLM into the process where something new has to be figured out, with code and checks around it.
+
+**If it didn't work, that's not the final word.** Six months ago I put this idea aside. Now, when something with AI fails, I come back to it a few months later.
+
+**Questions I would now ask a vendor:**
+
+- How do you check the result independently of whoever built it?
+- Where in the process is the model used, and what does ordinary, testable code handle?
 - When a new kind of failure appears, who notices it and who sets the task to fix it?
-- Who can change the setup itself — what the system sees and controls — and how fast?
 
 ## Limitations
 
-The game is deterministic, and the referee's random start delay is at most 60 frames, so 10 games are 10
-different openings, not 10 different worlds. We built the body and the referee. RL trained only briefly. A human
-started every fix. Bans on web search and on reading files outside its folder were rules in the task, not
-technical barriers — and our main repo already described the bounce mechanism by then. The researcher's session
-log shows it never read files outside its folder or went online.
+The game is deterministic. We built the game tools
+and the referee. A human started every fix. Web search and files outside its folder were off-limits by the task's
+rules, not technically, and the log shows the researcher never went there.
 
-Six months ago I thought AI was a trained model and an LLM was a helpful assistant writing code for it. Now I call
-an AI system the combination: an LLM that understands the task and builds the solution, a fast verifiable
-executor, and an independent check. Models also got stronger in six months, so I can't compare then and now
-fairly. But within this project the model was the same and the outcome was different — the role mattered a lot.
+## What finally clicked
 
-Code and the research log: <link>.
+Six months ago I heard Karpathy's words without really understanding them. I understood them from Arkanoid,
+watching the ball fly exactly where a player written by an LLM was aiming.
+
+If new-paradigm talk feels too abstract, find your own Arkanoid: a simple task where you can see the result with
+your own eyes.
+
+Code: [neuronoid](https://github.com/askarzh/neuronoid) and
+[neuronoid-strategist](https://github.com/askarzh/neuronoid-strategist); the researcher's log is
+[LOG.md](https://github.com/askarzh/neuronoid-strategist/blob/main/LOG.md) (in Russian).
+
+Where in your work could an LLM write the rules, instead of you training a model to learn them?

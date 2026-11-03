@@ -1,23 +1,23 @@
-Six months ago I tried to build an AI that plays Arkanoid — the 1988 DOS game, from screen pixels only. I failed.
+I finally understood Andrej Karpathy, thanks to Arkanoid!
 
-This time it reached round 33 and beat the final boss in 10 out of 10 games, checked by a separate referee
-program we wrote.
+A day of neural network training couldn't clear the first screen of a 1988 game. Then an LLM figured the game out
+by itself and wrote a player that beat it.
 
-What changed? Not just the models.
+Six months ago I watched Karpathy's talk about Software 1.0, 2.0 and 3.0. I nodded and understood nothing. I'm not a professional programmer, and words like "agents" were just words to me.
 
-First I went the classic way: reinforcement learning. About a day of training on a laptop CPU, 17 million steps —
-and the agent never honestly cleared round one. (Not a fair contest: RL trained only briefly.) An LLM wrote all
-that RL code for me. To me it was an assistant.
+Claude wrote the training code for me, and a neural network learned to play for
+about a day: 17 million steps. It never cleared all the bricks in round one.
 
-Then I gave the same model, Claude Opus 5.5, a different role. Not "write training code", but: here is a body —
-screen, keys, mouse, save states. Figure out how to play.
+This time I asked Claude to investigate the game itself: here is the screen, the mouse and save states, figure out
+how to play and write a player.
 
-It ran experiments like a scientist: measured how the ball bounces off the paddle, found six zones, wrote a player
-in plain readable code, and fixed it each time I set a new task. The researcher's work would have cost about $31
-at API prices — an estimate, since I used a subscription.
+What surprised me most: it designed its own experiment to measure how the ball bounces off the paddle. After more
+tasks and fixes, its ordinary program beat the final boss in 10 out of 10 games, checked by a separate referee.
 
-The lesson for anyone running technology: an AI system is not only a trained model. The LLM can be the part that
-understands the problem and builds the solution. And conclusions like "AI can't do this" are worth re-checking
-every six months.
+Then I watched the talk again, and it finally clicked. I had started with a one-page assignment. The LLM read it
+and wrote plain code. Software 3.0 wrote Software 1.0.
 
-Honest limits, the research loop and questions to ask vendors — in the article: <link>
+My business takeaway: give agents a sandbox, decide how to check before you automate, and give the LLM a defined
+role in the process, with tools and checks.
+
+The full story, with the experiments and the questions I'd now ask a vendor, is in the first comment.
