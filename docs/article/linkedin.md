@@ -85,8 +85,7 @@ agent succeeded, it's too early.
 **Make the LLM part of the system, not a helper on the side.** Don't just give staff a chatbot. Build the LLM into
 the process where someone has to make sense of something new, and keep ordinary code and checks around it.
 
-**If it didn't work, that's not the final word.** Six months ago I put this idea aside. Now the same kind of task
-took a few hours. When something with AI fails, I come back to it a few months later.
+**If it didn't work, that's not the final word.** Six months ago I put this idea aside. In this project the same model wrote a player that reached rounds 14–19 in about 2.5 hours. When something with AI fails, I come back to it a few months later.
 
 **Questions I would now ask a vendor:** How do you check the result independently of whoever built it? At which
 steps does the model run, and what is done by a program you can read and test? When a new failure appears, who
