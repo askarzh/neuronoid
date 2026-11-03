@@ -1,11 +1,12 @@
-For months I could follow conversations about AI without being sure I understood them. Agents, vibe coding,
-Software 3.0. I used the words. I couldn't tell which decisions the model made and which were built into the demo.
+I nodded along about AI for months. Then a 1988 game showed me what I'd been nodding at.
+
+Agents, vibe coding, Software 3.0. I used the words. I couldn't tell which decisions the model made and which were built into the demo.
 
 I felt awkward admitting that. Then I heard the first question Andrej Karpathy was asked on stage this spring: why
 he'd said he had never felt more behind as a programmer. He was talking about coding, but it made my own
 uncertainty less embarrassing.
 
-Reading more didn't help. So I tried a small experiment on my own time with Arkanoid, the 1988 game. I'm
+Reading more didn't help. So I tried a small experiment on my own time with Arkanoid. I'm
 not a professional programmer. Agents built most of the lab for me from plain language.
 
 First I had Claude write code to train a neural network. A day of training, and it never cleared all the bricks in
