@@ -50,7 +50,7 @@ def text_block(draw, xy, text, font, width, fill, spacing=1.18):
     return y
 
 
-def cover_final(name, size, headline, kicker, footer, text_w):
+def cover_final(name, size, headline, kicker, footer, text_w, hsize=None):
     W, H = size
     BG = (0, 0, 0)
     im = Image.new("RGB", size, BG)
@@ -78,7 +78,7 @@ def cover_final(name, size, headline, kicker, footer, text_w):
     d = ImageDraw.Draw(im)
     pad = 64
     d.text((pad, pad), kicker, font=pixel(28), fill=ACCENT)
-    y = text_block(d, (pad, pad + 54), headline, plex(54 if W > H else 76), text_w, INK)
+    y = text_block(d, (pad, pad + 54), headline, plex(hsize or (54 if W > H else 76)), text_w, INK)
     fy = H - pad - 26 if W > H else y + 24
     d.text((pad, fy), footer, font=plex(26 if W > H else 32, b"Regular"), fill=MUTED)
     im.save(OUT / name)
@@ -117,10 +117,10 @@ def badge(d, center, text, font):
 
 
 WROTE_TEXT = {
-    "en": dict(title="Software 3.0 wrote Software 1.0",
+    "en": dict(title="A goal in. A winning program out.",
                task="Figure out how to play and write a player program.",
                page="1 page of text", code="plain code, no LLM:", wins="10 wins of 10",
-               hook="I finally understood Andrej Karpathy, thanks to Arkanoid!"),
+               hook="I nodded along about AI for months. Then I built something I could watch."),
     "ru": dict(title="Software 3.0 написало Software 1.0",
                task="Разберись сам, как играть, и напиши программу-игрока.",
                page="1 страница текста", code="обычный код, без LLM:", wins="10 побед из 10",
@@ -170,14 +170,14 @@ def cover_wrote(name, size=(1200, 627), lang="en"):
 
 
 cover_final("cover-final-en.png", (1200, 627),
-            "I finally understood Andrej Karpathy, thanks to Arkanoid!",
-            "SOFTWARE 2.0 > 3.0", "A 1988 DOS game, beaten 10 out of 10 by an LLM-written player", 560)
+            "I nodded along about AI for months. Then I built something I could watch",
+            "A PRIVATE AI EXPERIMENT", "Arkanoid, 1988. An AI agent figured it out; its player won 10 test games of 10", 600, 50)
 cover_final("cover-final-ru.png", (1200, 627),
             "Наконец-то я понял Андрея Карпатого с\u00a0помощью Арканоида!",
             "SOFTWARE 2.0 > 3.0", "DOS-игра 1988 года, 10 побед из 10 у игрока, написанного LLM", 580)
 cover_final("cover-final-en-square.png", (1080, 1080),
-            "I finally understood Andrej Karpathy, thanks to Arkanoid!",
-            "SOFTWARE 2.0 > 3.0", "A 1988 DOS game, beaten 10 out of 10", 950)
+            "I nodded along about AI for months. Then I built something I could watch",
+            "A PRIVATE AI EXPERIMENT", "Arkanoid, 1988. An AI agent figured it out: 10 test games of 10", 950, 66)
 cover_split("cover-split-en.png")
 cover_wrote("cover-wrote-en.png")
 cover_wrote("cover-wrote-en-square.png", (1080, 1080))
