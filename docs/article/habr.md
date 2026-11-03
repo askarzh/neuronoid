@@ -119,4 +119,4 @@
 
 Если вам, как и мне, слова про новую парадигму кажутся слишком абстрактными, найдите свой Арканоид: простую задачу, где результат видно глазами. Она объяснит лучше лекции.
 
-Код проекта: [neuronoid](https://github.com/askarzh/neuronoid) и [neuronoid-strategist](https://github.com/askarzh/neuronoid-strategist). Журнал исследователя: [LOG.md](https://github.com/askarzh/neuronoid-strategist/blob/main/LOG.md). Разбор его рассуждений: [страница](https://claude.ai/artifact/Jg3cFqYyhGijs5BS8AfTPC). 
+Код проекта: [neuronoid](https://github.com/askarzh/neuronoid) и [neuronoid-strategist](https://github.com/askarzh/neuronoid-strategist). Журнал исследователя: [LOG.md](https://github.com/askarzh/neuronoid-strategist/blob/main/LOG.md). Разбор его рассуждений: [страница](https://github.com/askarzh/neuronoid/blob/main/docs/article/researcher-reasoning.md). 
