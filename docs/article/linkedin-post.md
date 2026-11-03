@@ -1,21 +1,22 @@
-I nodded along about AI for months. Agents, vibe coding, Software 3.0. I used the words. I understood very little.
+For months I could follow conversations about AI without being sure I understood them. Agents, vibe coding,
+Software 3.0. I used the words. I couldn't tell which decisions the model made and which were built into the demo.
 
-I couldn't say that out loud. Then I noticed the first question Andrej Karpathy was asked on stage this spring: why
-he'd said he had never felt more behind as a programmer. If he feels behind, I'm allowed to.
+I felt awkward admitting that. Then I heard the first question Andrej Karpathy was asked on stage this spring: why
+he'd said he had never felt more behind as a programmer. He was talking about coding, but it made my own
+uncertainty less embarrassing.
 
-Reading more didn't help. The one question you really want to ask, "but what did it actually do?", is the one you can't ask in a room full of people nodding.
+Reading more didn't help. So I tried a small experiment on my own time with Arkanoid, the 1988 game. I'm
+not a professional programmer. Agents built most of the lab for me from plain language.
 
-So I built something nobody had to see: a lab out of Arkanoid, the 1988 game. I'm not a professional programmer.
-Agents built most of the lab for me from plain language.
-
-First I had Claude write code to train a neural network. A day of training, and it never cleared the first wall.
+First I had Claude write code to train a neural network. A day of training, and it never cleared all the bricks in
+round one.
 
 Then I gave the same model a goal instead of a method: here is the screen, the mouse, save states. Figure it out.
 
-It ran an experiment I never asked for. It measured how the ball bounces off the paddle. In that moment "agent"
-stopped being a word. Later its player won all ten test games, checked by a separate referee that also caught a
-failure the agent had missed.
+It chose its own experiment: it mapped where the ball goes for each point on the paddle, a rule I hadn't given it.
+For the first time I could point to a decision the agent had made. Its player won all ten test games, checked
+by a separate referee that also caught a failure the agent's own tests had missed.
 
-About $136 of model usage. No team, no budget, nobody to admit anything to.
+About $136 at API-equivalent rates, on my own subscription.
 
-If you've nodded too: build something small you can watch. The full story is in the first comment.
+If you've nodded too, this helped me. The full story is in the first comment.
