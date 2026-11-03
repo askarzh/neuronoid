@@ -1,23 +1,23 @@
-I finally understood Andrej Karpathy, thanks to Arkanoid!
+I nodded along about AI for months. Then a 1988 game showed me what I'd been nodding at.
 
-A day of neural network training couldn't clear the first screen of a 1988 game. Then an LLM figured the game out
-by itself and wrote a player that beat it.
+Agents, vibe coding, Software 3.0. I used the words. I couldn't tell which decisions the model made and which were built into the demo.
 
-Six months ago I watched Karpathy's talk about Software 1.0, 2.0 and 3.0. I nodded and understood nothing. I'm not a professional programmer, and words like "agents" were just words to me.
+I felt awkward admitting that. Then I heard the first question Andrej Karpathy was asked on stage this spring: why
+he'd said he had never felt more behind as a programmer. He was talking about coding, but it made my own
+uncertainty less embarrassing.
 
-Claude wrote the training code for me, and a neural network learned to play for
-about a day: 17 million steps. It never cleared all the bricks in round one.
+Reading more didn't help. So I tried a small experiment on my own time with Arkanoid. I'm
+not a professional programmer. Agents built most of the lab for me from plain language.
 
-This time I asked Claude to investigate the game itself: here is the screen, the mouse and save states, figure out
-how to play and write a player.
+First I had Claude write code to train a neural network. A day of training, and it never cleared all the bricks in
+round one.
 
-What surprised me most: it designed its own experiment to measure how the ball bounces off the paddle. After more
-tasks and fixes, its ordinary program beat the final boss in 10 out of 10 games, checked by a separate referee.
+Then I gave the same model a goal instead of a method: here is the screen, the mouse, save states. Figure it out.
 
-Then I watched the talk again, and it finally clicked. I had started with a one-page assignment. The LLM read it
-and wrote plain code. Software 3.0 wrote Software 1.0.
+It chose its own experiment: it mapped where the ball goes for each point on the paddle, a rule I hadn't given it.
+For the first time I could point to a decision the agent had made. Its player won all ten test games, checked
+by a separate referee that also caught a failure the agent's own tests had missed.
 
-My business takeaway: give agents a sandbox, decide how to check before you automate, and give the LLM a defined
-role in the process, with tools and checks.
+About $136 at API-equivalent rates, on my own subscription.
 
-The full story, with the experiments and the questions I'd now ask a vendor, is in the first comment.
+If you've nodded too, this helped me. The full story is in the first comment.
