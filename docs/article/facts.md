@@ -136,7 +136,7 @@
   «6 действий сдвигают ракетку на 4–10 пикселей за решение». Обе записи из TL; в статье — «шаг ракетки ограничен»
   без конкретного числа, либо ±14 со ссылкой на TL «Прогон ppo5».
 
-## Выступление Карпаты (рамка статьи)
+## Выступление Карпатого (рамка статьи)
 
 Источник: Andrej Karpathy, «From Vibe Coding to Agentic Engineering», беседа со Stephanie Zhan, Sequoia AI Ascent
 2026 (конференция 20 апреля 2026, sequoiacap.com/article/ai-ascent-2026). Видео: youtu.be/96jN2OCOfLs,
@@ -160,5 +160,5 @@
 - «поднимает пол» / «сохраняет планку качества» / «отвечаете за свою программу» — «vibe coding is about raising the
   floor… agentic engineering is about preserving the quality bar… you're still responsible for your software just as
   before» (00:15:57).
-- «Думать можно поручить, понимать — нельзя» — Карпаты цитирует чужой твит: «you can outsource your thinking, but
+- «Думать можно поручить, понимать — нельзя» — Карпатый цитирует чужой твит: «you can outsource your thinking, but
   you can't outsource your understanding» (00:28:05).
