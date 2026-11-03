@@ -1,6 +1,6 @@
 # Таблица фактов статьи
 
-Каждое число в `habr.md`, `linkedin.md` и `linkedin-post.md` должно стоять в первой колонке этой таблицы с
+Каждое число в `habr.md`, `linkedin.md`, `linkedin-pyramid.md` и `linkedin-post.md` должно стоять в первой колонке этой таблицы с
 источником. `check.py` сверяет тексты с ней. Числа от 0 до 10 не проверяются.
 
 Сокращения источников: **TL** — `docs/training-log.md`, **SL** — `../neuronoid-strategist/LOG.md`,

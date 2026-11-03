@@ -1,23 +1,20 @@
-I finally understood Andrej Karpathy, thanks to Arkanoid!
+An AI agent is only as good as the system around it. I learned that from a 1988 game.
 
-A day of neural network training couldn't clear the first screen of a 1988 game. Then an LLM figured the game out
-by itself and wrote a player that beat it.
+A neural network I trained for about a day couldn't clear the first round of Arkanoid. Then I gave the same model,
+Claude, a different role: not my coding assistant, but a researcher. Its job: figure the game out from the screen and
+write a player program.
 
-Six months ago I watched Karpathy's talk about Software 1.0, 2.0 and 3.0. I nodded and understood nothing. I'm not a professional programmer, and words like "agents" were just words to me.
+That program beat the final boss in 10 games out of 10. Three things made the difference:
 
-Claude wrote the training code for me, and a neural network learned to play for
-about a day: 17 million steps. It never cleared all the bricks in round one.
+1. A sandbox. With save states it could run experiments, and it measured six bounce zones on the paddle by itself.
+2. An independent referee. A separate program checked every game, and it caught a bug the researcher's own tests had
+   missed.
+3. Code as the output. The finished player has no LLM inside: it's fast, readable and testable. Software 3.0 wrote
+   Software 1.0.
 
-This time I asked Claude to investigate the game itself: here is the screen, the mouse and save states, figure out
-how to play and write a player.
+And one human: me, noticing new kinds of failure and setting the next task.
 
-What surprised me most: it designed its own experiment to measure how the ball bounces off the paddle. After more
-tasks and fixes, its ordinary program beat the final boss in 10 out of 10 games, checked by a separate referee.
-
-Then I watched the talk again, and it finally clicked. I had started with a one-page assignment. The LLM read it
-and wrote plain code. Software 3.0 wrote Software 1.0.
-
-My business takeaway: give agents a sandbox, decide how to check before you automate, and give the LLM a defined
-role in the process, with tools and checks.
+My takeaway for business: before you automate with an agent, decide where it can fail safely, who checks the result,
+and what ordinary code does the actual work.
 
 The full story, with the experiments and the questions I'd now ask a vendor, is in the first comment.
