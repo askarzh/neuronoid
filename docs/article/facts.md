@@ -162,3 +162,6 @@
   before» (00:15:57).
 - «Думать можно поручить, понимать — нельзя» — Карпатый цитирует чужой твит: «you can outsource your thinking, but
   you can't outsource your understanding» (00:28:05).
+- «never felt more behind» — первый вопрос на сцене: Stephanie Zhan: «just a couple months ago, you said that you've
+  never felt more behind as a programmer» (00:00:47); ответ Карпатого: «a mixture of both» (exhilarating or
+  unsettling) (00:01:00).

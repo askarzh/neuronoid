@@ -1,22 +1,21 @@
-Most of us judge AI agents from demos. I'm not a professional programmer, so I built a small lab instead: a 1988
-game I could watch.
+I nodded along about AI for months. Agents, vibe coding, Software 3.0. I used the words. I understood very little.
 
-First, Claude wrote me the code to train a neural network to play Arkanoid. After about a day of training it never
-cleared all the bricks in round one.
+I couldn't say that out loud. Then I noticed the first question Andrej Karpathy was asked on stage this spring: why
+he'd said he had never felt more behind as a programmer. If he feels behind, I'm allowed to.
 
-Then I gave Claude a goal instead of a method: here is the screen, the mouse and save states; figure out how to play
-and write a player. It chose its own experiments. It measured how the ball bounces off the paddle, a rule I didn't
-give it. After a few more tasks, its player won all ten test games, checked by a separate referee program.
+Reading more didn't help. The one question you really want to ask, "but what did it actually do?", is the one you can't ask in a room full of people nodding.
 
-Two things I could finally see, and now look for in business:
+So I built something nobody had to see: a lab out of Arkanoid, the 1988 game. I'm not a professional programmer.
+Agents built most of the lab for me from plain language.
 
-1. A metric can rise while the job isn't done. My network's score kept improving, partly from bonus capsules, and it
-still never cleared the wall.
-2. The builder's tests aren't enough, and neither is the checker. The referee caught a loop the agent missed, and
-the referee itself had to be fixed twice.
+First I had Claude write code to train a neural network. A day of training, and it never cleared the first wall.
 
-The part I like most: agents also helped me build the lab, the training pipeline, the game access and the referee.
+Then I gave the same model a goal instead of a method: here is the screen, the mouse, save states. Figure it out.
 
-If agents feel abstract, find your own Arkanoid and watch what the agent tries.
+It ran an experiment I never asked for. It measured how the ball bounces off the paddle. In that moment "agent"
+stopped being a word. Later its player won all ten test games, checked by a separate referee that also caught a
+failure the agent had missed.
 
-The full story is in the first comment.
+About $136 of model usage. No team, no budget, nobody to admit anything to.
+
+If you've nodded too: build something small you can watch. The full story is in the first comment.
