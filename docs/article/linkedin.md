@@ -62,10 +62,10 @@ ran the experiment itself. It wasn't just writing code based on my suggestions a
 
 ![Six paddle zones and where the ball goes from each, measured by the researcher](img/bounce_en.png)
 
-Then came further tasks and fixes. In round 33 the boss shoots, and the player lost all its lives in about 36
+Then came further tasks and fixes. In round 33 the boss shoots back, and at first the player lost all its lives in about 36
 seconds. I set a new task, "beat DOH", without saying how, and the researcher taught the player to dodge. Later
 the ball kept looping in round 25 without making progress. The first fix didn't hold. The second time the
-researcher replayed that round 24 times from one saved moment, found 4 trapped cases and added an escape move.
+researcher replayed that round 24 times from two saved moments, found 4 trapped cases and added an escape move.
 
 ## How it was verified
 
@@ -73,7 +73,7 @@ Karpathy's other point clicked here: LLMs "can easily automate what you can veri
 game, waits a random number of frames, hands control to the player and reads the result from the screen. Final
 run: ten games with different start delays, 10 wins over DOH, mean score 343,977.
 
-Counted at API rates, model usage would have been about $31 for the researcher and about $136 for the whole
+At API rates, model usage would have been about $31 for the researcher and about $136 for the whole
 project. It's an estimate of model usage, not a bill.
 
 ## From Arkanoid to business
