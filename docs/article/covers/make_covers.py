@@ -116,26 +116,39 @@ def badge(d, center, text, font):
     d.text((cx - w / 2, cy - font.size * 0.62), text, font=font, fill=NAVY)
 
 
-def cover_wrote(name, size=(1200, 627)):
+WROTE_TEXT = {
+    "en": dict(title="Software 3.0 wrote Software 1.0",
+               task="Figure out how to play and write a player program.",
+               page="1 page of text", code="plain code, no LLM:", wins="10 wins of 10",
+               hook="I finally understood Andrej Karpathy, thanks to Arkanoid!"),
+    "ru": dict(title="Software 3.0 написало Software 1.0",
+               task="Разберись сам, как играть, и напиши программу-игрока.",
+               page="1 страница текста", code="обычный код, без LLM:", wins="10 побед из 10",
+               hook="Наконец-то я понял Андрея Карпатого с\u00a0помощью Арканоида!"),
+}
+
+
+def cover_wrote(name, size=(1200, 627), lang="en"):
+    t = WROTE_TEXT[lang]
     W, H = size
     sq = W == H
     im = Image.new("RGB", size, NAVY)
     d = ImageDraw.Draw(im)
     pad = 64
-    y = text_block(d, (pad, 52 if not sq else 80), "Software 3.0 wrote Software 1.0",
+    y = text_block(d, (pad, 52 if not sq else 80), t["title"],
                    plex(52 if not sq else 78), W - 2 * pad, INK, 1.12)
     # Page with the task.
     pw, ph = (300, 360) if not sq else (330, 420)
     px, py = pad, (170 if not sq else y + 70)
     d.rounded_rectangle([px, py, px + pw, py + ph], 10, fill=PAPER)
     d.text((px + 24, py + 22), "TASK.md", font=pixel(24), fill=(70, 84, 220))
-    text_block(d, (px + 24, py + 64), "Figure out how to play and write a player program.",
+    text_block(d, (px + 24, py + 64), t["task"],
                plex(24, b"SemiBold"), pw - 48, DARK_INK, 1.25)
     for i in range(7):
         ly = py + ph - 170 + i * 22
         d.line([(px + 24, ly), (px + pw - 24 - (i % 3) * 40, ly)], fill=(200, 202, 215), width=6)
     cap = plex(26 if not sq else 30, b"SemiBold")
-    d.text((px, py + ph + 16), "1 page of text", font=cap, fill=MUTED)
+    d.text((px, py + ph + 16), t["page"], font=cap, fill=MUTED)
     # Game frame (playfield only) played by the plain-code player.
     fh = ph
     fr = Image.open(IMG / "researcher_round18.png").crop((32, 0, 228, 200))
@@ -143,15 +156,15 @@ def cover_wrote(name, size=(1200, 627)):
     fx, fy = W - pad - fr.width, py
     im.paste(fr, (fx, fy))
     d.rectangle([fx - 2, fy - 2, fx + fr.width + 2, fy + fr.height + 2], outline=(60, 64, 110), width=2)
-    d.text((fx, fy + fr.height + 16), "plain code, no LLM:", font=cap, fill=MUTED)
-    d.text((fx, fy + fr.height + 16 + int(cap.size * 1.25)), "10 wins of 10", font=cap, fill=INK)
+    d.text((fx, fy + fr.height + 16), t["code"], font=cap, fill=MUTED)
+    d.text((fx, fy + fr.height + 16 + int(cap.size * 1.25)), t["wins"], font=cap, fill=INK)
     # Arrow with an LLM badge.
     ax0, ax1, ay = px + pw + 24, fx - 24, py + ph // 2
     d.line([(ax0, ay), (ax1 - 18, ay)], fill=ACCENT, width=6)
     d.polygon([(ax1, ay), (ax1 - 26, ay - 16), (ax1 - 26, ay + 16)], fill=ACCENT)
     badge(d, ((ax0 + ax1) // 2, ay - 48), "LLM", plex(28))
     if sq:
-        text_block(d, (pad, H - 150), "I finally understood Andrej Karpathy, thanks to Arkanoid!",
+        text_block(d, (pad, H - 150), t["hook"],
                    plex(36, b"SemiBold"), W - 2 * pad, ACCENT, 1.2)
     im.save(OUT / name)
 
@@ -168,4 +181,6 @@ cover_final("cover-final-en-square.png", (1080, 1080),
 cover_split("cover-split-en.png")
 cover_wrote("cover-wrote-en.png")
 cover_wrote("cover-wrote-en-square.png", (1080, 1080))
+cover_wrote("cover-wrote-ru.png", lang="ru")
+cover_wrote("cover-wrote-ru-square.png", (1080, 1080), lang="ru")
 print("done")
